@@ -13,7 +13,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import gymnasium as gym
-from gym_pybullet_drones.utils.enums import DroneModel, Physics, ImageType
+from render.gym_pybullet_drones.utils.enums import DroneModel, Physics, ImageType
 
 
 class BaseAviary(gym.Env):
@@ -597,7 +597,7 @@ class BaseAviary(gym.Env):
             [
                 p.loadURDF(
                     pkg_resources.resource_filename(
-                        "gym_pybullet_drones", "assets/" + self.URDF
+                        "render.gym_pybullet_drones", "assets/" + self.URDF
                     ),
                     self.INIT_XYZS[i, :],
                     p.getQuaternionFromEuler(self.INIT_RPYS[i, :]),
@@ -1169,7 +1169,7 @@ class BaseAviary(gym.Env):
         """
         URDF_TREE = etxml.parse(
             pkg_resources.resource_filename(
-                "gym_pybullet_drones", "assets/" + self.URDF
+                "render.gym_pybullet_drones", "assets/" + self.URDF
             )
         ).getroot()
         M = float(URDF_TREE[1][0][1].attrib["value"])

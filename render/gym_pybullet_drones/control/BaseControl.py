@@ -3,7 +3,7 @@ import numpy as np
 import xml.etree.ElementTree as etxml
 import pkg_resources
 
-from gym_pybullet_drones.utils.enums import DroneModel
+from render.gym_pybullet_drones.utils.enums import DroneModel
 
 
 class BaseControl(object):
