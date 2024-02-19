@@ -1,12 +1,12 @@
 import torch
 from HRTX.hrtx.mimmo import MIMMO
-from simulation_environment import DroneSimulation
+from simulation_environment import CustomDroneEnv
 
 # Initialize environment
-env = DroneSimulation(render=True)  # Assuming your environment supports a render flag
+env = CustomDroneEnv(gui=True, num_drones=6)  # Assuming your environment supports a render flag
 
 # Initialization
-model = MIMMO(512, 6, 8, 64, 3)
+model = MIMMO(512, 6, 8, 64, 6)
 
 
 def collect_observations(drones):
