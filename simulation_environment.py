@@ -10,7 +10,7 @@ from HRTX.hrtx.mimo import MIMOTransformer
 import torch
 import os
 
-DEFAULT_DRONES = DroneModel("cf2x")
+DEFAULT_DRONES = DroneModel.CF2X
 DEFAULT_NUM_DRONES = 3
 DEFAULT_PHYSICS = Physics("pyb")
 DEFAULT_GUI = True
@@ -103,10 +103,8 @@ class CustomDroneEnv:
         self.num_drones = num_drones
         self.drone_ids = []  # Initialize an empty list to store drone IDs
         #### Initialize the controllers ############################
-        if drone_model in [DroneModel.CF2X]:
-            self.ctrl = [
-                DSLPIDControl(drone_model=drone_model) for i in range(num_drones)
-            ]
+        if drone_model in [DroneModel]:
+            self.ctrl = [DSLPIDControl(drone_model=DroneModel.CF2X) for _ in range(num_drones)]
         # for _ in range(num_drones):
 
         # Construct the path to the URDF file for the drone model
