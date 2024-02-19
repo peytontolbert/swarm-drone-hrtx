@@ -1,6 +1,6 @@
 from pybullet_utils import bullet_client
 import pybullet
-from render.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
+from render.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary, BaseAviary
 from render.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 from render.gym_pybullet_drones.utils.enums import DroneModel, Physics
 from render.gym_pybullet_drones.utils.Logger import Logger
@@ -53,6 +53,7 @@ class CustomDroneEnv:
         urdf_base_path = os.path.join(
             os.getcwd(), "render", "gym_pybullet_drones", "assets"
         )
+        #self.CLIENT = pybullet.connect(pybullet.GUI if gui else pybullet.DIRECT)
 
         #### Initialize the simulation #############################
         H = 0.1
@@ -86,7 +87,7 @@ class CustomDroneEnv:
             obstacles=obstacles,
             user_debug_gui=user_debug_gui,
         )
-        # self.CLIENT = pybullet.connect(pybullet.GUI if gui else pybullet.DIRECT)
+        self.env.reset()
         # self.client = bullet_client.BulletClient(connection_mode=connection_mode)
         # self.client = pybullet.connect(pybullet.DIRECT)  # Instead of p.GUI
         # if gui:
@@ -123,6 +124,13 @@ class CustomDroneEnv:
             low=-np.inf, high=np.inf, shape=(num_drones, 10), dtype=np.float32
         )  # Extended observation space
 
+        # Initialize state attributes as zero arrays
+        self.pos = np.zeros((self.num_drones, 3))  # Position (x, y, z)
+        self.quat = np.zeros((self.num_drones, 4))  # Quaternion (x, y, z, w)
+        self.rpy = np.zeros((self.num_drones, 3))  # Roll, pitch, yaw
+        self.vel = np.zeros((self.num_drones, 3))  # Velocity (vx, vy, vz)
+        self.ang_v = np.zeros((self.num_drones, 3))  # Angular velocity (wx, wy, wz)
+        self.last_clipped_action = np.zeros((self.num_drones, 4))  # Last applied action (e.g., motor speeds)
     def _computeObs(self):
         """
         Compute and return the current observation of the environment.
@@ -201,7 +209,7 @@ class CustomDroneEnv:
         """Override to collect observations for all drones, formatted as tensors."""
         observations = []
         for drone_id in range(self.num_drones):
-            drone_observation = super()._getDroneStateVector(
+            drone_observation = self.env._getDroneStateVector(
                 drone_id
             )  # Collect per-drone observations
             observations.append(
