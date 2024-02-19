@@ -3,7 +3,9 @@ from HRTX.hrtx.mimmo import MIMMO
 from simulation_environment import CustomDroneEnv
 
 # Initialize environment
-env = CustomDroneEnv(gui=True, num_drones=6)  # Assuming your environment supports a render flag
+env = CustomDroneEnv(
+    gui=True, num_drones=6
+)  # Assuming your environment supports a render flag
 
 # Initialization
 model = MIMMO(512, 6, 8, 64, 6)
