@@ -1,33 +1,15 @@
-# main.py
 from example import run_simulation
-
-from simulation_environment import DroneSimulation
-from llm_control_model import LLMControlModel
-
+from simulation_environment import CustomDroneEnv
+DEFAULT_NUM_DRONES = 6
+DEFAULT_GUI = True
 def main():
-    # Initialize the simulation environment
-    simulation = DroneSimulation()
-
-    # Initialize the LLM control model
-    control_model = LLMControlModel()
-
-    # Main simulation loop
-    while not simulation.is_completed():
-        # Get current state observations from the simulation
-        observations = simulation.get_observations()
-
-        # Use the LLM control model to determine actions based on observations
-        actions = control_model.predict_actions(observations)
-
-        # Apply the actions to the simulation
-        simulation.apply_actions(actions)
-
-        # Update the simulation to the next time step
-        simulation.update()
-
-        # Render the simulation (optional, for visualization)
-        simulation.render()
-
+    simulation = CustomDroneEnv(num_drones=DEFAULT_NUM_DRONES, gui=DEFAULT_GUI)  # Add missing parameters
+    while not simulation.is_completed(): # Main simulation loop
+        observations = simulation.get_observations() # Get current state observations from the simulation
+        actions = simulation.mimo_transformer.transform_command(observations) # Directly use MIMO transformer to generate actions based on observations
+        simulation.apply_actions(actions) # Apply the actions to the simulation
+        simulation.update() # Update the simulation to the next time step
+        simulation.render() # Render the simulation (optional, for visualization)
 if __name__ == "__main__":
     main()
     run_simulation(render=True)

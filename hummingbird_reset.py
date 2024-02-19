@@ -17,7 +17,7 @@ class TestGazebo(object):
         """
         Quadrotor position resetter
         """
-        
+
         quadrotor = "hummingbird"
         # That is for us to command a new trajectory
         trajectory_topic = "command_trajectory"
@@ -30,35 +30,40 @@ class TestGazebo(object):
         # Sync publisher (send syncing messages)
         sync_topic = "/world_control"
 
-
         self.start_time = time.time()
         self.odo_msg_count = 0
 
-        #Initializing the node
-        rospy.init_node('quadrotor_env', anonymous=True)
-        
+        # Initializing the node
+        rospy.init_node("quadrotor_env", anonymous=True)
 
-        action_publisher = rospy.Publisher(quadrotor + "/" + actuators_topic, Actuators, queue_size=1)
+        action_publisher = rospy.Publisher(
+            quadrotor + "/" + actuators_topic, Actuators, queue_size=1
+        )
         # Waiting for reset service to appear
         rospy.wait_for_service(reset_topic)
         reset_service = rospy.ServiceProxy(reset_topic, SetModelState)
-
 
         # Resetting
         self.reset(reset_service)
 
         for i in range(10):
             actuator_msg = Actuators()
-            actuator_msg.angular_velocities = 0.*np.array([1., 1., 1., 1.])
+            actuator_msg.angular_velocities = 0.0 * np.array([1.0, 1.0, 1.0, 1.0])
             action_publisher.publish(actuator_msg)
 
-            rospy.sleep(.1)
+            rospy.sleep(0.1)
 
         # print('Motors are reset: ', actuator_msg)
         print("Motors are reset")
 
-
-    def reset(self, reset_service, pos=[0,0,0], orientation=[0,0,0,1], pos_vel=[0,0,0], angle_vel=[0,0,0]):
+    def reset(
+        self,
+        reset_service,
+        pos=[0, 0, 0],
+        orientation=[0, 0, 0, 1],
+        pos_vel=[0, 0, 0],
+        angle_vel=[0, 0, 0],
+    ):
         # print("##############################################################")
         # print("Sending reset request ...")
         req = ModelState()
@@ -85,10 +90,11 @@ class TestGazebo(object):
 
         try:
             resp = reset_service(req)
-            print('RESET done: ', resp)
+            print("RESET done: ", resp)
             return resp
         except rospy.ServiceException as e:
-            print('Reset failed: ', str(e))
+            print("Reset failed: ", str(e))
             raise e
+
 
 test = TestGazebo()
