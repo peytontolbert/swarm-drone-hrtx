@@ -1,5 +1,0 @@
-from render.gym_pybullet_drones.envs.BetaAviary import BetaAviary
-from render.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
-from render.gym_pybullet_drones.envs.HoverAviary import HoverAviary
-from render.gym_pybullet_drones.envs.MultiHoverAviary import MultiHoverAviary
-from render.gym_pybullet_drones.envs.VelocityAviary import VelocityAviary

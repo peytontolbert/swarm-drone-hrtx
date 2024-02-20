@@ -1,0 +1,11 @@
+torch
+einops
+zetascale
+classifier_free_guidance_pytorch
+pybullet
+beartype
+stable-baseline3
+pytest
+matplotlib
+transforms3d
+scipy
