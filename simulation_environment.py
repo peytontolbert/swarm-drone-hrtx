@@ -82,16 +82,15 @@ class CustomDroneEnv:
         )
         # Initialize a circular trajectory
         PERIOD = 10
-        NUM_WP = control_freq_hz * PERIOD
-        self.TARGET_POS = np.zeros((NUM_WP, 3))
-        for i in range(NUM_WP):
+        self.NUM_WP = control_freq_hz * PERIOD
+        self.TARGET_POS = np.zeros((self.NUM_WP, 3))
+        for i in range(self.NUM_WP):
             self.TARGET_POS[i, :] = (
-                R * np.cos((i / NUM_WP) * (2 * np.pi) + np.pi / 2) + self.INIT_XYZS[0, 0],
-                R * np.sin((i / NUM_WP) * (2 * np.pi) + np.pi / 2) - R + self.INIT_XYZS[0, 1],
+                R * np.cos((i / self.NUM_WP) * (2 * np.pi) + np.pi / 2) + self.INIT_XYZS[0, 0],
+                R * np.sin((i / self.NUM_WP) * (2 * np.pi) + np.pi / 2) - R + self.INIT_XYZS[0, 1],
                 0,
             )
-        self.wp_counters = np.array([int((i * NUM_WP / 6) % NUM_WP) for i in range(num_drones)])
-
+        self.wp_counters = np.array([int((i * self.NUM_WP / 6) % self.NUM_WP) for i in range(num_drones)])
         #### Create the environment ################################
         self.env = CtrlAviary(
             drone_model=DEFAULT_DRONES,
@@ -124,8 +123,7 @@ class CustomDroneEnv:
         self.num_drones = num_drones
         self.drone_ids = []  # Initialize an empty list to store drone IDs
         self.model_dim = model_dim # Dimension of the MIMO transformer model
-        self.expansion_layer = nn.Linear(21, model_dim)  # Projects from 20 features to 512
-
+        self.expansion_layer = nn.Linear(21, model_dim)  # Projects from 21 features to 512
         #### Initialize the controllers ############################
         if drone_model in [DroneModel.CF2X, DroneModel.CF2P]:
             self.ctrl = [DSLPIDControl(drone_model=drone_model) for _ in range(num_drones)]
@@ -164,36 +162,62 @@ class CustomDroneEnv:
         - timestamp: The current simulation time.
         - simulation: A boolean flag indicating if the operation is in simulation or real-world.
         """
+        computed_actions = []
         if simulation:
             # For simulation: Apply actions as per the simulation setup described in the provided script.
             # Assuming 'action' contains target positions and orientations for simulation purposes.
             # Here, we directly use the target positions and orientations defined globally (e.g., TARGET_POS)
             # and compute the control actions as done in the example script.
+            print(f"action: {action}")
+            for drone_action in action:
+            # The 'computed_action' would then be applied through the simulation environment's step method.
+            # This step is typically done for all drones together, so you might adjust this part based on your simulation's API.
+                target_pos = action.get('pos')
+                target_rpy = action.get('rpy')
+                self.TARGET_POS[self.wp_counters[drone_id], :] = target_pos
+                drone_id = action.get('drone_id')
+                # Compute the control command based on the target state
+                computed_action, _, _ = self.ctrl[drone_id].computeControlFromState(
+                    control_timestep=self.env.CTRL_TIMESTEP,
+                    state=self.env._getDroneStateVector(drone_id),
+                    target_pos=target_pos,
+                    target_rpy=target_rpy,
+                )
+                print(f"Computed action: {computed_action}")
+                print(f'hstack: {np.hstack([self.TARGET_POS[self.wp_counters[drone_id], 0:2], self.INIT_XYZS[drone_id, 2], self.INIT_RPYS[drone_id, :], np.zeros(6)])}')
+                # Log the action
+                logs = self.logger.log(
+                    drone=drone_id,
+                    timestamp=timestamp,
+                    state=self.env._getDroneStateVector(drone_id),
+                    control=np.hstack(
+                        [
+                        self.TARGET_POS[self.wp_counters[drone_id], 0:2],
+                        self.INIT_XYZS[drone_id, 0:2],
+                        self.INIT_RPYS[drone_id, :],
+                        np.zeros(5),
+                        ]
+                    ),
+                )
+                print(f'logs: {logs}')
+                # Update waypoint counters or other state management logic as needed
+                # For example, if using waypoints, move to the next waypoint as appropriate
+                self.wp_counters[drone_id] = (self.wp_counters[drone_id] + 1) % self.NUM_WP
+                computed_actions.append({'computed action: {computed_action} drone: {drone_id}'})
+                
+        else:
             target_pos = self.TARGET_POS[self.wp_counters[drone_id], :]
             target_rpy = self.INIT_RPYS[drone_id, :]
-
             computed_action, _, _ = self.ctrl[drone_id].computeControlFromState(
                 control_timestep=self.env.CTRL_TIMESTEP,
                 state=self.env._getDroneStateVector(drone_id),
                 target_pos=target_pos,
                 target_rpy=target_rpy,
             )
-            # The 'computed_action' would then be applied through the simulation environment's step method.
-            # This step is typically done for all drones together, so you might adjust this part based on your simulation's API.
-
-            # Log the action
-            self.logger.log(
-                drone=drone_id,
-                timestamp=timestamp,
-                state=self.env._getDroneStateVector(drone_id),
-                control=computed_action,
-            )
-
-        else:
             # For real-world application, set actions directly.
             # Placeholder for real-world action application logic.
             pass  # Replace this with real-world action application logic later.
-
+        return computed_actions
     def transform_observation(self, observation):
         """Applies a linear transformation to project observation features to model dimensions."""
         observation_tensor = torch.tensor(observation, dtype=torch.float32)
@@ -214,7 +238,6 @@ class CustomDroneEnv:
         transformed_observation = self.expansion_layer(combined_tensor.unsqueeze(0))
         print(transformed_observation.shape)
         return transformed_observation
-
     def _get_observation(self):
         """Override to collect observations for all drones, formatted as tensors."""
         observations = []
@@ -228,57 +251,45 @@ class CustomDroneEnv:
         # Stack observations to match [batch_size, num_drones, feature_size]
         #observations_tensor = torch.stack(observations).unsqueeze(0)
         return observations
-    def decode_actions(self, action_tensors):
-        """
-        Decodes the list of tensors from the MIMO transformer into actionable control commands.
-        
-        Parameters:
-        - action_tensors: A list of tensors, where each tensor corresponds to the actions for a drone.
-        
-        Returns:
-        - A list of decoded actions suitable for each drone.
-        """
-        decoded_actions = []
-        for tensor in action_tensors:
-            # Assuming the tensor shape is [1, N, D] where N is the sequence length (1 in this case),
-            # and D is the dimension of the actions. We squeeze the tensor to remove unnecessary dimensions.
-            action = tensor.squeeze().tolist()  # Convert the tensor to a list
-            
-            # If additional decoding or scaling is necessary, apply it here.
-            # For simplicity, this example directly uses the action list.
-            
-            decoded_actions.append(action)
-        
-        return decoded_actions
-
     def generate_and_apply_actions(self):
         """Generates actions for all drones using the MIMO transformer and applies them."""
         observations = (
             self._get_observation()
         )  # Collect observations in the required tensor format
         # Ensure observations_tensor is of shape [batch_size, num_drones, feature_size]
-        action_tensor_list = self.mimo_transformer(observations)
-        print(action_tensor_list)
+        output_tensors = self.mimo_transformer(observations)
+        print(f'Action tensor list: {output_tensors}')
         # Decode the action tensors into actionable commands
-        actions = self.decode_actions(action_tensor_list)
-        
+        decoded_actions = self.decode_transformer_outputs_to_actions(output_tensors)
         results = []
-        for drone_id, action in enumerate(actions):
+        print(f'decoded actions: {decoded_actions}')
+        for drone_id, action in enumerate(decoded_actions):
             simulation = True
+            print(f"Applying action {action} to drone {drone_id}")
             # Directly apply the action to the drone
-            # This assumes your environment has a method to apply actions directly, 
-            # such as setting desired velocities or positions
-            # You might need to replace `_setDroneStateVelocity` with the actual method name
             result = self._apply_action(drone_id, action, simulation)  # Adjust this line according to your environment's API
             results.append(result)
             # Ensure 'action' is in the appropriate format and scale for the control method used
         return results
-        
+    
+    def decode_transformer_outputs_to_actions(self, output_tensors):
+        decoded_actions = []
+        # Process each tensor in action_tensor_list to convert to actionable commands
+        action_tensor = output_tensors[0].squeeze()  # Remove batch dimension
+        for i in range(action_tensor.size(0)):  # Iterate over drones
+            # Example decoding process
+            print(f' i, action_tensor: {i}, {action_tensor}')
+            action_data = action_tensor[i].detach().cpu().numpy()  # Assuming a simple conversion; adjust as necessary
+            target_pos = action_data[:3]  # Example: First 3 values are target position
+            target_rpy = action_data[3:6]  # Next 3 values are target orientation
+            drone_id = i  # Assuming the drone ID is the index in the tensor
+            decoded_actions.append({'pos': target_pos, 'rpy': target_rpy, 'drone_id': drone_id})
+        print(f'length of decoded actions: {len(decoded_actions)}')
+        return decoded_actions
     def step(self):
         """Perform a step in the environment. This will now use generate_and_apply_actions method."""
-        self.generate_and_apply_actions()  # Replace direct action application with MIMO-generated actions
-        super().stepSimulation()  # Advances the simulation forward by one timestep
-
+        results = self.generate_and_apply_actions()  # Replace direct action application with MIMO-generated actions
+        return results
     def load_scenario(self, scenario_file):
         # Load scenario configurations here
         pass

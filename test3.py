@@ -19,8 +19,9 @@ while current_time < duration_sec:
     control_commands = np.zeros((num_drones, 4))  # Assuming 4 control inputs per drone
 
     # Step the environment with the control commands
-    observation, reward, done, info = env.step()
-
+    # observation, reward, done, info = env.step()
+    results = env.step()
+    print(f'results: {results}')
     # Visualization or data logging (if applicable and necessary)
     # This section can be customized based on your specific requirements
 

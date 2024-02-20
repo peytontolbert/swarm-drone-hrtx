@@ -156,6 +156,11 @@ def run(
 
         #### Compute control for the current way point #############
         for j in range(num_drones):
+            print(f'drone {j}')
+            print(f' Waypoint: {wp_counters[j]}')
+            print(f' Target position: {TARGET_POS[wp_counters[j], 0:2]}')
+            print(f' Initial position: {INIT_XYZS[j, 0:2]}')
+            print(f'target_rpy: {INIT_RPYS[j, :]}')
             action[j, :], _, _ = ctrl[j].computeControlFromState(
                 control_timestep=env.CTRL_TIMESTEP,
                 state=obs[j],
@@ -165,13 +170,18 @@ def run(
                 # target_pos=INIT_XYZS[j, :] + TARGET_POS[wp_counters[j], :],
                 target_rpy=INIT_RPYS[j, :],
             )
-
+            print(f'Action: {action[j, :]}')
         #### Go to the next way point and loop #####################
         for j in range(num_drones):
             wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP - 1) else 0
 
         #### Log the simulation ####################################
         for j in range(num_drones):
+            print(f'TARGETPOS: {TARGET_POS[wp_counters[j], 0:2]}')
+            print(f'INIT_XYZS: {INIT_XYZS[j, 2]}')
+            print(f'INIT_RPYS: {INIT_RPYS[j, :]}')
+            print(f'hstack: {np.hstack([TARGET_POS[wp_counters[j], 0:2], INIT_XYZS[j, 2], INIT_RPYS[j, :], np.zeros(6)])}')
+
             logger.log(
                 drone=j,
                 timestamp=i / env.CTRL_FREQ,
