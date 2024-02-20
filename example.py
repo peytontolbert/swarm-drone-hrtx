@@ -1,40 +1,32 @@
-import torch
-from HRTX.hrtx.mimmo import MIMMO
+import numpy as np
 from simulation_environment import CustomDroneEnv
 
-# Initialize environment
-env = CustomDroneEnv(
-    gui=True, num_drones=6
-)  # Assuming your environment supports a render flag
+# Configuration parameters
+num_drones = 3
+enable_gui = True
+simulation_time_step = 1 / 240  # Simulation time step (seconds)
+control_time_step = 1 / 48  # Control update time step (seconds)
+duration_sec = 12  # Total duration of the simulation
 
-# Initialization
-model = MIMMO(512, 6, 8, 64, 6)
+# Initialize the environment
+env = CustomDroneEnv(num_drones=num_drones, gui=enable_gui)
 
+# Main simulation loop
+current_time = 0.0
+while current_time < duration_sec:
+    # Placeholder for generating control commands for each drone
+    # This could involve PID controllers or other control strategies
+    control_commands = np.zeros((num_drones, 4))  # Assuming 4 control inputs per drone
 
-def collect_observations(drones):
-    """Collect and preprocess observations from drones."""
-    # Example: Collect position (x, y, z) and velocity (vx, vy, vz) for each drone
-    positions = [drone.position for drone in drones]
-    velocities = [drone.velocity for drone in drones]
-    # Preprocess (Here, you'd match the model's input requirements)
-    # Placeholder: Convert to tensors and normalize if required
-    positions_tensor = torch.tensor(positions)  # Simplified example
-    velocities_tensor = torch.tensor(velocities)
-    # Returning a list of tensors as expected by the model
-    return [positions_tensor, velocities_tensor]
+    # Step the environment with the control commands
+    # observation, reward, done, info = env.step()
+    results = env.step()
+    print(f'results: {results}')
+    # Visualization or data logging (if applicable and necessary)
+    # This section can be customized based on your specific requirements
 
+    # Increment the current time by the control time step
+    current_time += control_time_step
 
-def apply_control_commands(drones, commands):
-    """Apply control commands to drones."""
-    # Loop through drones and apply corresponding control commands
-    for drone, command in zip(drones, commands):
-        drone.apply_thrust(command)  # Simplified control action
-
-
-# Main control loop
-while True:  # or some condition
-    observations = collect_observations(simulation.drones)
-    pred_commands = model(observations)
-    apply_control_commands(simulation.drones, pred_commands)
-    simulation.update()  # Assuming a function to update the simulation environment exists
-    simulation.render()  # Optionally render the simulation state
+# Cleanup and closing of the environment if necessary
+env.close()
