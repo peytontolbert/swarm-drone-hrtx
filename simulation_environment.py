@@ -1,12 +1,12 @@
 from pybullet_utils import bullet_client
 import pybullet
-from render.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary, BaseAviary
-from render.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
-from render.gym_pybullet_drones.utils.enums import DroneModel, Physics
-from render.gym_pybullet_drones.utils.Logger import Logger
+from gpd.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary, BaseAviary
+from gpd.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
+from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
+from gpd.gym_pybullet_drones.utils.Logger import Logger
 from gym import spaces
 import numpy as np
-from HRTX.hrtx.mimo import MIMOTransformer
+from hrtx.hrtx.mimo import MIMOTransformer
 import torch
 import os
 from torch import nn
