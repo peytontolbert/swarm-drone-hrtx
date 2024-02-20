@@ -4,7 +4,9 @@ from gymnasium import spaces
 
 from gpd.gym_pybullet_drones.envs.BaseAviary import BaseAviary
 from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
-from gpd.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
+from gpd.gym_pybullet_drones.control.DSLPIDControl import (
+    DSLPIDControl,
+)
 
 
 class VelocityAviary(BaseAviary):
@@ -62,7 +64,8 @@ class VelocityAviary(BaseAviary):
         os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
         if drone_model in [DroneModel.CF2X, DroneModel.CF2P]:
             self.ctrl = [
-                DSLPIDControl(drone_model=DroneModel.CF2X) for i in range(num_drones)
+                DSLPIDControl(drone_model=DroneModel.CF2X)
+                for i in range(num_drones)
             ]
         super().__init__(
             drone_model=drone_model,
@@ -94,9 +97,17 @@ class VelocityAviary(BaseAviary):
 
         """
         #### Action vector ######### X       Y       Z   fract. of MAX_SPEED_KMH
-        act_lower_bound = np.array([[-1, -1, -1, 0] for i in range(self.NUM_DRONES)])
-        act_upper_bound = np.array([[1, 1, 1, 1] for i in range(self.NUM_DRONES)])
-        return spaces.Box(low=act_lower_bound, high=act_upper_bound, dtype=np.float32)
+        act_lower_bound = np.array(
+            [[-1, -1, -1, 0] for i in range(self.NUM_DRONES)]
+        )
+        act_upper_bound = np.array(
+            [[1, 1, 1, 1] for i in range(self.NUM_DRONES)]
+        )
+        return spaces.Box(
+            low=act_lower_bound,
+            high=act_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -164,7 +175,11 @@ class VelocityAviary(BaseAviary):
                 for i in range(self.NUM_DRONES)
             ]
         )
-        return spaces.Box(low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32)
+        return spaces.Box(
+            low=obs_lower_bound,
+            high=obs_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -179,7 +194,12 @@ class VelocityAviary(BaseAviary):
             An ndarray of shape (NUM_DRONES, 20) with the state of each drone.
 
         """
-        return np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+        return np.array(
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
+        )
 
     ################################################################################
 
@@ -207,7 +227,9 @@ class VelocityAviary(BaseAviary):
             target_v = action[k, :]
             #### Normalize the first 3 components of the target velocity
             if np.linalg.norm(target_v[0:3]) != 0:
-                v_unit_vector = target_v[0:3] / np.linalg.norm(target_v[0:3])
+                v_unit_vector = target_v[0:3] / np.linalg.norm(
+                    target_v[0:3]
+                )
             else:
                 v_unit_vector = np.zeros(3)
             temp, _, _ = self.ctrl[k].computeControl(
@@ -217,7 +239,9 @@ class VelocityAviary(BaseAviary):
                 cur_vel=state[10:13],
                 cur_ang_vel=state[13:16],
                 target_pos=state[0:3],  # same as the current position
-                target_rpy=np.array([0, 0, state[9]]),  # keep current yaw
+                target_rpy=np.array(
+                    [0, 0, state[9]]
+                ),  # keep current yaw
                 target_vel=self.SPEED_LIMIT
                 * np.abs(target_v[3])
                 * v_unit_vector,  # target the desired velocity vector

@@ -176,16 +176,42 @@ class BaseControl(object):
         ]
         if not all(hasattr(self, attr) for attr in ATTR_LIST):
             print(
-                "[ERROR] in BaseControl.setPIDCoefficients(), not all PID coefficients exist as attributes in the instantiated control class."
+                "[ERROR] in BaseControl.setPIDCoefficients(), not all"
+                " PID coefficients exist as attributes in the"
+                " instantiated control class."
             )
             exit()
         else:
-            self.P_COEFF_FOR = self.P_COEFF_FOR if p_coeff_pos is None else p_coeff_pos
-            self.I_COEFF_FOR = self.I_COEFF_FOR if i_coeff_pos is None else i_coeff_pos
-            self.D_COEFF_FOR = self.D_COEFF_FOR if d_coeff_pos is None else d_coeff_pos
-            self.P_COEFF_TOR = self.P_COEFF_TOR if p_coeff_att is None else p_coeff_att
-            self.I_COEFF_TOR = self.I_COEFF_TOR if i_coeff_att is None else i_coeff_att
-            self.D_COEFF_TOR = self.D_COEFF_TOR if d_coeff_att is None else d_coeff_att
+            self.P_COEFF_FOR = (
+                self.P_COEFF_FOR
+                if p_coeff_pos is None
+                else p_coeff_pos
+            )
+            self.I_COEFF_FOR = (
+                self.I_COEFF_FOR
+                if i_coeff_pos is None
+                else i_coeff_pos
+            )
+            self.D_COEFF_FOR = (
+                self.D_COEFF_FOR
+                if d_coeff_pos is None
+                else d_coeff_pos
+            )
+            self.P_COEFF_TOR = (
+                self.P_COEFF_TOR
+                if p_coeff_att is None
+                else p_coeff_att
+            )
+            self.I_COEFF_TOR = (
+                self.I_COEFF_TOR
+                if i_coeff_att is None
+                else i_coeff_att
+            )
+            self.D_COEFF_TOR = (
+                self.D_COEFF_TOR
+                if d_coeff_att is None
+                else d_coeff_att
+            )
 
     ################################################################################
 
@@ -208,7 +234,9 @@ class BaseControl(object):
         """
         #### Get the XML tree of the drone model to control ########
         URDF = self.DRONE_MODEL.value + ".urdf"
-        path = pkg_resources.resource_filename("gym_pybullet_drones", "assets/" + URDF)
+        path = pkg_resources.resource_filename(
+            "gpd.gym_pybullet_drones", "assets/" + URDF
+        )
         URDF_TREE = etxml.parse(path).getroot()
         #### Find and return the desired parameter #################
         if parameter_name == "m":
@@ -221,7 +249,7 @@ class BaseControl(object):
             "kf",
             "km",
             "max_speed_kmh",
-            "gnd_eff_coeff" "prop_radius",
+            "gnd_eff_coeffprop_radius",
             "drag_coeff_xy",
             "drag_coeff_z",
             "dw_coeff_1",
@@ -233,6 +261,7 @@ class BaseControl(object):
             return float(URDF_TREE[1][2][1][0].attrib[parameter_name])
         elif parameter_name == "collision_z_offset":
             COLLISION_SHAPE_OFFSETS = [
-                float(s) for s in URDF_TREE[1][2][0].attrib["xyz"].split(" ")
+                float(s)
+                for s in URDF_TREE[1][2][0].attrib["xyz"].split(" ")
             ]
             return COLLISION_SHAPE_OFFSETS[2]

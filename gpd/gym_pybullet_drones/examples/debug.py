@@ -25,7 +25,9 @@ if __name__ == "__main__":
         cameraTargetPosition=[0.0, 0.0, 0.0],
         physicsClientId=PYB_CLIENT,
     )
-    p.setGravity(0, 0, 0, physicsClientId=PYB_CLIENT)  # Make objects weightless
+    p.setGravity(
+        0, 0, 0, physicsClientId=PYB_CLIENT
+    )  # Make objects weightless
 
     ROBOT_1 = p.loadURDF(
         "../assets/box.urdf",
@@ -44,7 +46,11 @@ if __name__ == "__main__":
         ROBOT_1,
         posObj=[-0.2, -0.2, 0.5],
         ornObj=p.getQuaternionFromEuler(
-            [45 * (np.pi / 180), 0 * (np.pi / 180), 0 * (np.pi / 180)],
+            [
+                45 * (np.pi / 180),
+                0 * (np.pi / 180),
+                0 * (np.pi / 180),
+            ],
             physicsClientId=PYB_CLIENT,
         ),
         physicsClientId=PYB_CLIENT,
@@ -152,9 +158,15 @@ if __name__ == "__main__":
             physicsClientId=PYB_CLIENT,
         )
 
-        pos, quat = p.getBasePositionAndOrientation(ROBOT_1, physicsClientId=PYB_CLIENT)
-        rpj = p.getEulerFromQuaternion(quat, physicsClientId=PYB_CLIENT)
-        vel, ang_vel = p.getBaseVelocity(ROBOT_1, physicsClientId=PYB_CLIENT)
+        pos, quat = p.getBasePositionAndOrientation(
+            ROBOT_1, physicsClientId=PYB_CLIENT
+        )
+        rpj = p.getEulerFromQuaternion(
+            quat, physicsClientId=PYB_CLIENT
+        )
+        vel, ang_vel = p.getBaseVelocity(
+            ROBOT_1, physicsClientId=PYB_CLIENT
+        )
 
         # invPos, invOrn = p.invertTransform(pos, quat)
         # pos2, quat2 = p.getBasePositionAndOrientation(ROBOT_2, physicsClientId=PYB_CLIENT)

@@ -30,7 +30,12 @@ import argparse
 import numpy as np
 import csv
 
-from transforms3d.quaternions import rotate_vector, qconjugate, mat2quat, qmult
+from transforms3d.quaternions import (
+    rotate_vector,
+    qconjugate,
+    mat2quat,
+    qmult,
+)
 from transforms3d.utils import normalized_vector
 
 from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
@@ -64,7 +69,9 @@ def run(
     output_folder=DEFAULT_OUTPUT_FOLDER,
 ):
     #### Create the environment with or without video capture ##
-    INIT_XYZ = np.array([[0.3 * i, 0.3 * i, 0.1] for i in range(1, num_drones + 1)])
+    INIT_XYZ = np.array(
+        [[0.3 * i, 0.3 * i, 0.1] for i in range(1, num_drones + 1)]
+    )
     INIT_RPY = np.array([[0.0, 0.0, 0.0] for _ in range(num_drones)])
     env = BetaAviary(
         drone_model=drone,
@@ -151,11 +158,16 @@ def run(
         if t > env.TRAJ_TIME:
             for j in range(num_drones):
                 try:
-                    target = next(trajectory1) if j % 2 == 0 else next(trajectory2)
+                    target = (
+                        next(trajectory1)
+                        if j % 2 == 0
+                        else next(trajectory2)
+                    )
                     action[j, :] = ctrl.computeControlFromState(
                         control_timestep=env.CTRL_TIMESTEP,
                         state=obs[j],
-                        target_pos=target["pos"] + [INIT_XYZ[j][0], INIT_XYZ[j][1], 0],
+                        target_pos=target["pos"]
+                        + [INIT_XYZ[j][0], INIT_XYZ[j][1], 0],
                         target_vel=target["vel"],
                     )
                 except:
@@ -163,7 +175,9 @@ def run(
 
         #### Log the simulation ####################################
         for j in range(num_drones):
-            logger.log(drone=j, timestamp=i / env.CTRL_FREQ, state=obs[j])
+            logger.log(
+                drone=j, timestamp=i / env.CTRL_FREQ, state=obs[j]
+            )
 
         #### Printout ##############################################
         env.render()
@@ -231,7 +245,10 @@ if __name__ == "__main__":
         "--user_debug_gui",
         default=DEFAULT_USER_DEBUG_GUI,
         type=str2bool,
-        help="Whether to add debug lines and parameters to the GUI (default: False)",
+        help=(
+            "Whether to add debug lines and parameters to the GUI"
+            " (default: False)"
+        ),
         metavar="",
     )
     parser.add_argument(

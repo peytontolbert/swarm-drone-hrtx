@@ -20,7 +20,9 @@ class Physics(Enum):
     PYB_GND = "pyb_gnd"  # PyBullet physics update with ground effect
     PYB_DRAG = "pyb_drag"  # PyBullet physics update with drag
     PYB_DW = "pyb_dw"  # PyBullet physics update with downwash
-    PYB_GND_DRAG_DW = "pyb_gnd_drag_dw"  # PyBullet physics update with ground effect, drag, and downwash
+    PYB_GND_DRAG_DW = (  # PyBullet physics update with ground effect, drag, and downwash
+        "pyb_gnd_drag_dw"
+    )
 
 
 ################################################################################
@@ -44,8 +46,12 @@ class ActionType(Enum):
     RPM = "rpm"  # RPMS
     PID = "pid"  # PID control
     VEL = "vel"  # Velocity input (using PID control)
-    ONE_D_RPM = "one_d_rpm"  # 1D (identical input to all motors) with RPMs
-    ONE_D_PID = "one_d_pid"  # 1D (identical input to all motors) with PID control
+    ONE_D_RPM = (  # 1D (identical input to all motors) with RPMs
+        "one_d_rpm"
+    )
+    ONE_D_PID = (  # 1D (identical input to all motors) with PID control
+        "one_d_pid"
+    )
 
 
 ################################################################################
@@ -54,5 +60,7 @@ class ActionType(Enum):
 class ObservationType(Enum):
     """Observation type enumeration class."""
 
-    KIN = "kin"  # Kinematic information (pose, linear and angular velocities)
+    KIN = (  # Kinematic information (pose, linear and angular velocities)
+        "kin"
+    )
     RGB = "rgb"  # RGB camera capture in each drone's POV

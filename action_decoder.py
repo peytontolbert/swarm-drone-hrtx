@@ -1,5 +1,7 @@
 from torch import Tensor
 from typing import List
+
+
 class ActionDecoder:
     def __init__(self, num_drones, output_dim):
         # Assuming output_dim is the dimension of each action tensor for a drone
@@ -15,7 +17,13 @@ class ActionDecoder:
             action_data = tensor.squeeze().detach().numpy()
             # Decode action_data into meaningful control commands
             # This is a placeholder, actual decoding depends on how your data is structured
-            target_pos = action_data[:3]  # Example: First 3 values are target position
-            target_rpy = action_data[3:6]  # Next 3 values are target orientation (roll, pitch, yaw)
-            decoded_actions.append({'pos': target_pos, 'rpy': target_rpy})
+            target_pos = action_data[
+                :3
+            ]  # Example: First 3 values are target position
+            target_rpy = action_data[
+                3:6
+            ]  # Next 3 values are target orientation (roll, pitch, yaw)
+            decoded_actions.append(
+                {"pos": target_pos, "rpy": target_rpy}
+            )
         return decoded_actions

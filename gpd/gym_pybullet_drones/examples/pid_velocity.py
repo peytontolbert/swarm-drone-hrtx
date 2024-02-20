@@ -26,7 +26,9 @@ import matplotlib.pyplot as plt
 
 from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
 from gpd.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
-from gpd.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
+from gpd.gym_pybullet_drones.control.DSLPIDControl import (
+    DSLPIDControl,
+)
 from gpd.gym_pybullet_drones.utils.Logger import Logger
 from gpd.gym_pybullet_drones.utils.utils import sync, str2bool
 
@@ -59,9 +61,16 @@ def run(
     colab=DEFAULT_COLAB,
 ):
     #### Initialize the simulation #############################
-    INIT_XYZS = np.array([[0, 0, 0.1], [0.3, 0, 0.1], [0.6, 0, 0.1], [0.9, 0, 0.1]])
+    INIT_XYZS = np.array(
+        [[0, 0, 0.1], [0.3, 0, 0.1], [0.6, 0, 0.1], [0.9, 0, 0.1]]
+    )
     INIT_RPYS = np.array(
-        [[0, 0, 0], [0, 0, np.pi / 3], [0, 0, np.pi / 4], [0, 0, np.pi / 2]]
+        [
+            [0, 0, 0],
+            [0, 0, np.pi / 3],
+            [0, 0, np.pi / 4],
+            [0, 0, np.pi / 2],
+        ]
     )
     PHY = Physics.PYB
 
@@ -94,10 +103,14 @@ def run(
     TARGET_VEL = np.zeros((4, NUM_WP, 4))
     for i in range(NUM_WP):
         TARGET_VEL[0, i, :] = (
-            [-0.5, 1, 0, 0.99] if i < (NUM_WP / 8) else [0.5, -1, 0, 0.99]
+            [-0.5, 1, 0, 0.99]
+            if i < (NUM_WP / 8)
+            else [0.5, -1, 0, 0.99]
         )
         TARGET_VEL[1, i, :] = (
-            [0, 1, 0, 0.99] if i < (NUM_WP / 8 + NUM_WP / 6) else [0, -1, 0, 0.99]
+            [0, 1, 0, 0.99]
+            if i < (NUM_WP / 8 + NUM_WP / 6)
+            else [0, -1, 0, 0.99]
         )
         TARGET_VEL[2, i, :] = (
             [0.2, 1, 0.2, 0.99]
@@ -134,7 +147,11 @@ def run(
 
         #### Go to the next way point and loop #####################
         for j in range(4):
-            wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP - 1) else 0
+            wp_counters[j] = (
+                wp_counters[j] + 1
+                if wp_counters[j] < (NUM_WP - 1)
+                else 0
+            )
 
         #### Log the simulation ####################################
         for j in range(4):
@@ -142,7 +159,9 @@ def run(
                 drone=j,
                 timestamp=i / env.CTRL_FREQ,
                 state=obs[j],
-                control=np.hstack([TARGET_VEL[j, wp_counters[j], 0:3], np.zeros(9)]),
+                control=np.hstack(
+                    [TARGET_VEL[j, wp_counters[j], 0:3], np.zeros(9)]
+                ),
             )
 
         #### Printout ##############################################
@@ -199,14 +218,20 @@ if __name__ == "__main__":
         "--user_debug_gui",
         default=DEFAULT_USER_DEBUG_GUI,
         type=str2bool,
-        help="Whether to add debug lines and parameters to the GUI (default: False)",
+        help=(
+            "Whether to add debug lines and parameters to the GUI"
+            " (default: False)"
+        ),
         metavar="",
     )
     parser.add_argument(
         "--obstacles",
         default=DEFAULT_OBSTACLES,
         type=str2bool,
-        help="Whether to add obstacles to the environment (default: False)",
+        help=(
+            "Whether to add obstacles to the environment (default:"
+            " False)"
+        ),
         metavar="",
     )
     parser.add_argument(
@@ -241,7 +266,10 @@ if __name__ == "__main__":
         "--colab",
         default=DEFAULT_COLAB,
         type=bool,
-        help='Whether example is being run by a notebook (default: "False")',
+        help=(
+            "Whether example is being run by a notebook (default:"
+            ' "False")'
+        ),
         metavar="",
     )
     ARGS = parser.parse_args()

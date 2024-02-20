@@ -32,9 +32,14 @@ from stable_baselines3.common.evaluation import evaluate_policy
 
 from gpd.gym_pybullet_drones.utils.Logger import Logger
 from gpd.gym_pybullet_drones.envs.HoverAviary import HoverAviary
-from gpd.gym_pybullet_drones.envs.MultiHoverAviary import MultiHoverAviary
+from gpd.gym_pybullet_drones.envs.MultiHoverAviary import (
+    MultiHoverAviary,
+)
 from gpd.gym_pybullet_drones.utils.utils import sync, str2bool
-from gpd.gym_pybullet_drones.utils.enums import ObservationType, ActionType
+from gpd.gym_pybullet_drones.utils.enums import (
+    ObservationType,
+    ActionType,
+)
 
 DEFAULT_GUI = True
 DEFAULT_RECORD_VIDEO = False
@@ -59,7 +64,8 @@ def run(
     local=True,
 ):
     filename = os.path.join(
-        output_folder, "save-" + datetime.now().strftime("%m.%d.%Y_%H.%M.%S")
+        output_folder,
+        "save-" + datetime.now().strftime("%m.%d.%Y_%H.%M.%S"),
     )
     if not os.path.exists(filename):
         os.makedirs(filename + "/")
@@ -76,13 +82,17 @@ def run(
         train_env = make_vec_env(
             MultiHoverAviary,
             env_kwargs=dict(
-                num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT
+                num_drones=DEFAULT_AGENTS,
+                obs=DEFAULT_OBS,
+                act=DEFAULT_ACT,
             ),
             n_envs=1,
             seed=0,
         )
         eval_env = MultiHoverAviary(
-            num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT
+            num_drones=DEFAULT_AGENTS,
+            obs=DEFAULT_OBS,
+            act=DEFAULT_ACT,
         )
 
     #### Check the environment's spaces ########################
@@ -116,9 +126,9 @@ def run(
         render=False,
     )
     model.learn(
-        total_timesteps=int(1e7)
-        if local
-        else int(1e2),  # shorter training in GitHub Actions pytest
+        total_timesteps=(
+            int(1e7) if local else int(1e2)
+        ),  # shorter training in GitHub Actions pytest
         callback=eval_callback,
         log_interval=100,
     )
@@ -130,7 +140,11 @@ def run(
     #### Print training progression ############################
     with np.load(filename + "/evaluations.npz") as data:
         for j in range(data["timesteps"].shape[0]):
-            print(str(data["timesteps"][j]) + "," + str(data["results"][j][0]))
+            print(
+                str(data["timesteps"][j])
+                + ","
+                + str(data["results"][j][0])
+            )
 
     ############################################################
     ############################################################
@@ -152,7 +166,10 @@ def run(
     #### Show (and record a video of) the model's performance ##
     if not multiagent:
         test_env = HoverAviary(
-            gui=gui, obs=DEFAULT_OBS, act=DEFAULT_ACT, record=record_video
+            gui=gui,
+            obs=DEFAULT_OBS,
+            act=DEFAULT_ACT,
+            record=record_video,
         )
         test_env_nogui = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
     else:
@@ -164,7 +181,9 @@ def run(
             record=record_video,
         )
         test_env_nogui = MultiHoverAviary(
-            num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT
+            num_drones=DEFAULT_AGENTS,
+            obs=DEFAULT_OBS,
+            act=DEFAULT_ACT,
         )
     logger = Logger(
         logging_freq_hz=int(test_env.CTRL_FREQ),
@@ -173,14 +192,22 @@ def run(
         colab=colab,
     )
 
-    mean_reward, std_reward = evaluate_policy(model, test_env_nogui, n_eval_episodes=10)
-    print("\n\n\nMean reward ", mean_reward, " +- ", std_reward, "\n\n")
+    mean_reward, std_reward = evaluate_policy(
+        model, test_env_nogui, n_eval_episodes=10
+    )
+    print(
+        "\n\n\nMean reward ", mean_reward, " +- ", std_reward, "\n\n"
+    )
 
     obs, info = test_env.reset(seed=42, options={})
     start = time.time()
-    for i in range((test_env.EPISODE_LEN_SEC + 2) * test_env.CTRL_FREQ):
+    for i in range(
+        (test_env.EPISODE_LEN_SEC + 2) * test_env.CTRL_FREQ
+    ):
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = test_env.step(action)
+        obs, reward, terminated, truncated, info = test_env.step(
+            action
+        )
         obs2 = obs.squeeze()
         act2 = action.squeeze()
         print(
@@ -200,7 +227,9 @@ def run(
                 logger.log(
                     drone=0,
                     timestamp=i / test_env.CTRL_FREQ,
-                    state=np.hstack([obs2[0:3], np.zeros(4), obs2[3:15], act2]),
+                    state=np.hstack(
+                        [obs2[0:3], np.zeros(4), obs2[3:15], act2]
+                    ),
                     control=np.zeros(12),
                 )
             else:
@@ -209,7 +238,12 @@ def run(
                         drone=d,
                         timestamp=i / test_env.CTRL_FREQ,
                         state=np.hstack(
-                            [obs2[d][0:3], np.zeros(4), obs2[d][3:15], act2[d]]
+                            [
+                                obs2[d][0:3],
+                                np.zeros(4),
+                                obs2[d][3:15],
+                                act2[d],
+                            ]
                         ),
                         control=np.zeros(12),
                     )
@@ -227,13 +261,18 @@ def run(
 if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(
-        description="Single agent reinforcement learning example script"
+        description=(
+            "Single agent reinforcement learning example script"
+        )
     )
     parser.add_argument(
         "--multiagent",
         default=DEFAULT_MA,
         type=str2bool,
-        help="Whether to use example LeaderFollower instead of Hover (default: False)",
+        help=(
+            "Whether to use example LeaderFollower instead of Hover"
+            " (default: False)"
+        ),
         metavar="",
     )
     parser.add_argument(
@@ -261,7 +300,10 @@ if __name__ == "__main__":
         "--colab",
         default=DEFAULT_COLAB,
         type=bool,
-        help='Whether example is being run by a notebook (default: "False")',
+        help=(
+            "Whether example is being run by a notebook (default:"
+            ' "False")'
+        ),
         metavar="",
     )
     ARGS = parser.parse_args()

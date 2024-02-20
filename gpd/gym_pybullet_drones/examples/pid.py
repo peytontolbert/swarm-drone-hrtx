@@ -26,11 +26,11 @@ import numpy as np
 import pybullet as p
 import matplotlib.pyplot as plt
 
-from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
-from gpd.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
-from gpd.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
-from gpd.gym_pybullet_drones.utils.Logger import Logger
-from gpd.gym_pybullet_drones.utils.utils import sync, str2bool
+from gym_pybullet_drones.utils.enums import DroneModel, Physics
+from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
+from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
+from gym_pybullet_drones.utils.Logger import Logger
+from gym_pybullet_drones.utils.utils import sync, str2bool
 
 DEFAULT_DRONES = DroneModel("cf2x")
 DEFAULT_NUM_DRONES = 3
@@ -77,7 +77,10 @@ def run(
         ]
     )
     INIT_RPYS = np.array(
-        [[0, 0, i * (np.pi / 2) / num_drones] for i in range(num_drones)]
+        [
+            [0, 0, i * (np.pi / 2) / num_drones]
+            for i in range(num_drones)
+        ]
     )
 
     #### Initialize a circular trajectory ######################
@@ -86,11 +89,16 @@ def run(
     TARGET_POS = np.zeros((NUM_WP, 3))
     for i in range(NUM_WP):
         TARGET_POS[i, :] = (
-            R * np.cos((i / NUM_WP) * (2 * np.pi) + np.pi / 2) + INIT_XYZS[0, 0],
-            R * np.sin((i / NUM_WP) * (2 * np.pi) + np.pi / 2) - R + INIT_XYZS[0, 1],
+            R * np.cos((i / NUM_WP) * (2 * np.pi) + np.pi / 2)
+            + INIT_XYZS[0, 0],
+            R * np.sin((i / NUM_WP) * (2 * np.pi) + np.pi / 2)
+            - R
+            + INIT_XYZS[0, 1],
             0,
         )
-    wp_counters = np.array([int((i * NUM_WP / 6) % NUM_WP) for i in range(num_drones)])
+    wp_counters = np.array(
+        [int((i * NUM_WP / 6) % NUM_WP) for i in range(num_drones)]
+    )
 
     #### Debug trajectory ######################################
     #### Uncomment alt. target_pos in .computeControlFromState()
@@ -142,7 +150,10 @@ def run(
 
     #### Initialize the controllers ############################
     if drone in [DroneModel.CF2X, DroneModel.CF2P]:
-        ctrl = [DSLPIDControl(drone_model=drone) for i in range(num_drones)]
+        ctrl = [
+            DSLPIDControl(drone_model=drone)
+            for i in range(num_drones)
+        ]
 
     #### Run the simulation ####################################
     action = np.zeros((num_drones, 4))
@@ -156,11 +167,13 @@ def run(
 
         #### Compute control for the current way point #############
         for j in range(num_drones):
-            print(f'drone {j}')
-            print(f' Waypoint: {wp_counters[j]}')
-            print(f' Target position: {TARGET_POS[wp_counters[j], 0:2]}')
-            print(f' Initial position: {INIT_XYZS[j, 0:2]}')
-            print(f'target_rpy: {INIT_RPYS[j, :]}')
+            print(f"drone {j}")
+            print(f" Waypoint: {wp_counters[j]}")
+            print(
+                f" Target position: {TARGET_POS[wp_counters[j], 0:2]}"
+            )
+            print(f" Initial position: {INIT_XYZS[j, 0:2]}")
+            print(f"target_rpy: {INIT_RPYS[j, :]}")
             action[j, :], _, _ = ctrl[j].computeControlFromState(
                 control_timestep=env.CTRL_TIMESTEP,
                 state=obs[j],
@@ -170,17 +183,24 @@ def run(
                 # target_pos=INIT_XYZS[j, :] + TARGET_POS[wp_counters[j], :],
                 target_rpy=INIT_RPYS[j, :],
             )
-            print(f'Action: {action[j, :]}')
+            print(f"Action: {action[j, :]}")
         #### Go to the next way point and loop #####################
         for j in range(num_drones):
-            wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP - 1) else 0
+            wp_counters[j] = (
+                wp_counters[j] + 1
+                if wp_counters[j] < (NUM_WP - 1)
+                else 0
+            )
 
         #### Log the simulation ####################################
         for j in range(num_drones):
-            print(f'TARGETPOS: {TARGET_POS[wp_counters[j], 0:2]}')
-            print(f'INIT_XYZS: {INIT_XYZS[j, 2]}')
-            print(f'INIT_RPYS: {INIT_RPYS[j, :]}')
-            print(f'hstack: {np.hstack([TARGET_POS[wp_counters[j], 0:2], INIT_XYZS[j, 2], INIT_RPYS[j, :], np.zeros(6)])}')
+            print(f"TARGETPOS: {TARGET_POS[wp_counters[j], 0:2]}")
+            print(f"INIT_XYZS: {INIT_XYZS[j, 2]}")
+            print(f"INIT_RPYS: {INIT_RPYS[j, :]}")
+            print(
+                "hstack:"
+                f" {np.hstack([TARGET_POS[wp_counters[j], 0:2], INIT_XYZS[j, 2], INIT_RPYS[j, :], np.zeros(6)])}"
+            )
 
             logger.log(
                 drone=j,
@@ -193,7 +213,7 @@ def run(
                         INIT_RPYS[j, :],
                         np.zeros(6),
                     ]
-                )
+                ),
                 # control=np.hstack([INIT_XYZS[j, :]+TARGET_POS[wp_counters[j], :], INIT_RPYS[j, :], np.zeros(6)])
             )
 
@@ -219,7 +239,9 @@ def run(
 if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(
-        description="Helix flight script using CtrlAviary and DSLPIDControl"
+        description=(
+            "Helix flight script using CtrlAviary and DSLPIDControl"
+        )
     )
     parser.add_argument(
         "--drone",
@@ -269,14 +291,20 @@ if __name__ == "__main__":
         "--user_debug_gui",
         default=DEFAULT_USER_DEBUG_GUI,
         type=str2bool,
-        help="Whether to add debug lines and parameters to the GUI (default: False)",
+        help=(
+            "Whether to add debug lines and parameters to the GUI"
+            " (default: False)"
+        ),
         metavar="",
     )
     parser.add_argument(
         "--obstacles",
         default=DEFAULT_OBSTACLES,
         type=str2bool,
-        help="Whether to add obstacles to the environment (default: True)",
+        help=(
+            "Whether to add obstacles to the environment (default:"
+            " True)"
+        ),
         metavar="",
     )
     parser.add_argument(
@@ -311,7 +339,10 @@ if __name__ == "__main__":
         "--colab",
         default=DEFAULT_COLAB,
         type=bool,
-        help='Whether example is being run by a notebook (default: "False")',
+        help=(
+            "Whether example is being run by a notebook (default:"
+            ' "False")'
+        ),
         metavar="",
     )
     ARGS = parser.parse_args()

@@ -5,7 +5,12 @@ import pkg_resources
 import socket
 import struct
 
-from transforms3d.quaternions import rotate_vector, qconjugate, mat2quat, qmult
+from transforms3d.quaternions import (
+    rotate_vector,
+    qconjugate,
+    mat2quat,
+    qmult,
+)
 from transforms3d.utils import normalized_vector
 
 from gpd.gym_pybullet_drones.utils.enums import DroneModel
@@ -89,7 +94,9 @@ class CTBRControl(object):
         return self.computeControl(
             control_timestep=control_timestep,
             cur_pos=state[0:3],
-            cur_quat=np.array([state[6], state[3], state[4], state[5]]),
+            cur_quat=np.array(
+                [state[6], state[3], state[4], state[5]]
+            ),
             cur_vel=state[10:13],
             cur_ang_vel=state[13:16],
             target_pos=target_pos,
@@ -141,10 +148,18 @@ class CTBRControl(object):
         assert cur_pos.shape == (3,), f"cur_pos {cur_pos.shape}"
         assert cur_quat.shape == (4,), f"cur_quat {cur_quat.shape}"
         assert cur_vel.shape == (3,), f"cur_vel {cur_vel.shape}"
-        assert cur_ang_vel.shape == (3,), f"cur_ang_vel {cur_ang_vel.shape}"
-        assert target_pos.shape == (3,), f"target_pos {target_pos.shape}"
-        assert target_rpy.shape == (3,), f"target_rpy {target_rpy.shape}"
-        assert target_vel.shape == (3,), f"target_vel {target_vel.shape}"
+        assert cur_ang_vel.shape == (
+            3,
+        ), f"cur_ang_vel {cur_ang_vel.shape}"
+        assert target_pos.shape == (
+            3,
+        ), f"target_pos {target_pos.shape}"
+        assert target_rpy.shape == (
+            3,
+        ), f"target_rpy {target_rpy.shape}"
+        assert target_vel.shape == (
+            3,
+        ), f"target_vel {target_vel.shape}"
         assert target_rpy_rates.shape == (
             3,
         ), f"target_rpy_rates {target_rpy_rates.shape}"
@@ -156,10 +171,14 @@ class CTBRControl(object):
         P = target_pos - cur_pos
         D = target_vel - cur_vel
         tar_acc = K_P * P + K_D * D - G
-        norm_thrust = np.dot(tar_acc, rotate_vector([0.0, 0.0, 1.0], cur_quat))
+        norm_thrust = np.dot(
+            tar_acc, rotate_vector([0.0, 0.0, 1.0], cur_quat)
+        )
         # Calculate target attitude
         z_body = normalized_vector(tar_acc)
-        x_body = normalized_vector(np.cross(np.array([0.0, 1.0, 0.0]), z_body))
+        x_body = normalized_vector(
+            np.cross(np.array([0.0, 1.0, 0.0]), z_body)
+        )
         y_body = normalized_vector(np.cross(z_body, x_body))
         tar_att = mat2quat(np.vstack([x_body, y_body, z_body]).T)
         # Calculate body rates
@@ -212,16 +231,42 @@ class CTBRControl(object):
         ]
         if not all(hasattr(self, attr) for attr in ATTR_LIST):
             print(
-                "[ERROR] in BaseControl.setPIDCoefficients(), not all PID coefficients exist as attributes in the instantiated control class."
+                "[ERROR] in BaseControl.setPIDCoefficients(), not all"
+                " PID coefficients exist as attributes in the"
+                " instantiated control class."
             )
             exit()
         else:
-            self.P_COEFF_FOR = self.P_COEFF_FOR if p_coeff_pos is None else p_coeff_pos
-            self.I_COEFF_FOR = self.I_COEFF_FOR if i_coeff_pos is None else i_coeff_pos
-            self.D_COEFF_FOR = self.D_COEFF_FOR if d_coeff_pos is None else d_coeff_pos
-            self.P_COEFF_TOR = self.P_COEFF_TOR if p_coeff_att is None else p_coeff_att
-            self.I_COEFF_TOR = self.I_COEFF_TOR if i_coeff_att is None else i_coeff_att
-            self.D_COEFF_TOR = self.D_COEFF_TOR if d_coeff_att is None else d_coeff_att
+            self.P_COEFF_FOR = (
+                self.P_COEFF_FOR
+                if p_coeff_pos is None
+                else p_coeff_pos
+            )
+            self.I_COEFF_FOR = (
+                self.I_COEFF_FOR
+                if i_coeff_pos is None
+                else i_coeff_pos
+            )
+            self.D_COEFF_FOR = (
+                self.D_COEFF_FOR
+                if d_coeff_pos is None
+                else d_coeff_pos
+            )
+            self.P_COEFF_TOR = (
+                self.P_COEFF_TOR
+                if p_coeff_att is None
+                else p_coeff_att
+            )
+            self.I_COEFF_TOR = (
+                self.I_COEFF_TOR
+                if i_coeff_att is None
+                else i_coeff_att
+            )
+            self.D_COEFF_TOR = (
+                self.D_COEFF_TOR
+                if d_coeff_att is None
+                else d_coeff_att
+            )
 
     ################################################################################
 
@@ -244,7 +289,9 @@ class CTBRControl(object):
         """
         #### Get the XML tree of the drone model to control ########
         URDF = self.DRONE_MODEL.value + ".urdf"
-        path = pkg_resources.resource_filename("gym_pybullet_drones", "assets/" + URDF)
+        path = pkg_resources.resource_filename(
+            "gym_pybullet_drones", "assets/" + URDF
+        )
         URDF_TREE = etxml.parse(path).getroot()
         #### Find and return the desired parameter #################
         if parameter_name == "m":
@@ -257,7 +304,7 @@ class CTBRControl(object):
             "kf",
             "km",
             "max_speed_kmh",
-            "gnd_eff_coeff" "prop_radius",
+            "gnd_eff_coeffprop_radius",
             "drag_coeff_xy",
             "drag_coeff_z",
             "dw_coeff_1",
@@ -269,6 +316,7 @@ class CTBRControl(object):
             return float(URDF_TREE[1][2][1][0].attrib[parameter_name])
         elif parameter_name == "collision_z_offset":
             COLLISION_SHAPE_OFFSETS = [
-                float(s) for s in URDF_TREE[1][2][0].attrib["xyz"].split(" ")
+                float(s)
+                for s in URDF_TREE[1][2][0].attrib["xyz"].split(" ")
             ]
             return COLLISION_SHAPE_OFFSETS[2]

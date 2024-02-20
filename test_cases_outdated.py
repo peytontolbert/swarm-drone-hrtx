@@ -9,7 +9,9 @@ import numpy as np
 class TestCustomDroneEnv(unittest.TestCase):
     def setUp(self):
         """Initialize the CustomDroneEnv environment for testing."""
-        self.env = CustomDroneEnv(gui=False, num_drones=DEFAULT_NUM_DRONES)
+        self.env = CustomDroneEnv(
+            gui=False, num_drones=DEFAULT_NUM_DRONES
+        )
 
         self.env.reset()
 
@@ -36,7 +38,9 @@ class TestCustomDroneEnv(unittest.TestCase):
         example_action = np.zeros(
             (DEFAULT_NUM_DRONES, 7)
         )  # Example zero actions for each drone
-        observations, rewards, dones, infos = self.env.step(example_action)
+        observations, rewards, dones, infos = self.env.step(
+            example_action
+        )
 
         self.assertEqual(
             observations.shape,
@@ -54,7 +58,9 @@ class TestCustomDroneEnv(unittest.TestCase):
             "Step function returned incorrect number of dones.",
         )
         self.assertIsInstance(
-            infos, dict, "Step function should return an info dictionary."
+            infos,
+            dict,
+            "Step function should return an info dictionary.",
         )
 
     def test_drone_movement(self):
@@ -67,7 +73,9 @@ class TestCustomDroneEnv(unittest.TestCase):
         obs, _, _, _ = self.env.step(actions)
         # Assuming the first value in observation indicates a positional change
         for drone_obs in obs:
-            self.assertNotEqual(drone_obs[0], 0, "Drone did not move as expected.")
+            self.assertNotEqual(
+                drone_obs[0], 0, "Drone did not move as expected."
+            )
 
     def test_reset_functionality(self):
         """Test if the environment can be reset correctly."""

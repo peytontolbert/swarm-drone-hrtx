@@ -92,12 +92,20 @@ class MultiHoverAviary(BaseRLAviary):
 
         """
         states = np.array(
-            [self._getDroneStateVector(i) for i in range(self.NUM_DRONES)]
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
         )
         ret = 0
         for i in range(self.NUM_DRONES):
             ret += max(
-                0, 2 - np.linalg.norm(self.TARGET_POS[i, :] - states[i][0:3]) ** 4
+                0,
+                2
+                - np.linalg.norm(
+                    self.TARGET_POS[i, :] - states[i][0:3]
+                )
+                ** 4,
             )
         return ret
 
@@ -113,11 +121,16 @@ class MultiHoverAviary(BaseRLAviary):
 
         """
         states = np.array(
-            [self._getDroneStateVector(i) for i in range(self.NUM_DRONES)]
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
         )
         dist = 0
         for i in range(self.NUM_DRONES):
-            dist += np.linalg.norm(self.TARGET_POS[i, :] - states[i][0:3])
+            dist += np.linalg.norm(
+                self.TARGET_POS[i, :] - states[i][0:3]
+            )
         if dist < 0.0001:
             return True
         else:
@@ -135,15 +148,20 @@ class MultiHoverAviary(BaseRLAviary):
 
         """
         states = np.array(
-            [self._getDroneStateVector(i) for i in range(self.NUM_DRONES)]
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
         )
         for i in range(self.NUM_DRONES):
             if (
                 abs(states[i][0]) > 2.0
                 or abs(states[i][1]) > 2.0
-                or states[i][2] > 2.0  # Truncate when a drones is too far away
+                or states[i][2]
+                > 2.0  # Truncate when a drones is too far away
                 or abs(states[i][7]) > 0.4
-                or abs(states[i][8]) > 0.4  # Truncate when a drone is too tilted
+                or abs(states[i][8])
+                > 0.4  # Truncate when a drone is too tilted
             ):
                 return True
         if self.step_counter / self.PYB_FREQ > self.EPISODE_LEN_SEC:

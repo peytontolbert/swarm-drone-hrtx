@@ -89,11 +89,20 @@ class CtrlAviary(BaseAviary):
         )
         act_upper_bound = np.array(
             [
-                [self.MAX_RPM, self.MAX_RPM, self.MAX_RPM, self.MAX_RPM]
+                [
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                ]
                 for i in range(self.NUM_DRONES)
             ]
         )
-        return spaces.Box(low=act_lower_bound, high=act_upper_bound, dtype=np.float32)
+        return spaces.Box(
+            low=act_lower_bound,
+            high=act_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -161,7 +170,11 @@ class CtrlAviary(BaseAviary):
                 for i in range(self.NUM_DRONES)
             ]
         )
-        return spaces.Box(low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32)
+        return spaces.Box(
+            low=obs_lower_bound,
+            high=obs_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -176,7 +189,12 @@ class CtrlAviary(BaseAviary):
             An ndarray of shape (NUM_DRONES, 20) with the state of each drone.
 
         """
-        return np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+        return np.array(
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
+        )
 
     ################################################################################
 
@@ -198,7 +216,10 @@ class CtrlAviary(BaseAviary):
 
         """
         return np.array(
-            [np.clip(action[i, :], 0, self.MAX_RPM) for i in range(self.NUM_DRONES)]
+            [
+                np.clip(action[i, :], 0, self.MAX_RPM)
+                for i in range(self.NUM_DRONES)
+            ]
         )
 
     ################################################################################

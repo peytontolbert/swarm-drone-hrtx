@@ -2,7 +2,7 @@ import numpy as np
 from simulation_environment import CustomDroneEnv
 
 # Configuration parameters
-num_drones = 3
+num_drones = 5
 enable_gui = True
 simulation_time_step = 1 / 240  # Simulation time step (seconds)
 control_time_step = 1 / 48  # Control update time step (seconds)
@@ -17,12 +17,14 @@ current_time = 0.0
 for i in range(0, int(duration_sec * DEFAULT_CONTROL_FREQ_HZ)):
     # Placeholder for generating control commands for each drone
     # This could involve PID controllers or other control strategies
-    control_commands = np.zeros((num_drones, 4))  # Assuming 4 control inputs per drone
+    control_commands = np.zeros(
+        (num_drones, 4)
+    )  # Assuming 4 control inputs per drone
 
     # Step the environment with the control commands
     # observation, reward, done, info = env.step()
     results = env.step(i)
-    print(f'results: {results}')
+    print(f"results: {results}")
     # Visualization or data logging (if applicable and necessary)
     # This section can be customized based on your specific requirements
 

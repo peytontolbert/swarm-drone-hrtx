@@ -93,7 +93,10 @@ class BetaAviary(BaseAviary):
                 + str(i)
                 + "/"
             )
-            cmd = f"gnome-terminal -- bash -c 'cd {FOLDER} && ./obj/main/betaflight_SITL.elf; exec bash'"
+            cmd = (
+                f"gnome-terminal -- bash -c 'cd {FOLDER} &&"
+                " ./obj/main/betaflight_SITL.elf; exec bash'"
+            )
             subprocess.Popen(cmd, shell=True)
         time.sleep(2)
 
@@ -106,10 +109,14 @@ class BetaAviary(BaseAviary):
         self.sock_pwm = []
         for i in range(self.NUM_DRONES):
             self.sock.append(
-                socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet
+                socket.socket(
+                    socket.AF_INET, socket.SOCK_DGRAM
+                )  # Internet
             )  # UDP
             self.sock_pwm.append(
-                socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet
+                socket.socket(
+                    socket.AF_INET, socket.SOCK_DGRAM
+                )  # Internet
             )  # UDP
             self.sock_pwm[i].bind(
                 (self.UDP_IP, BASE_PORT_PWM + 10 * (i))
@@ -121,13 +128,19 @@ class BetaAviary(BaseAviary):
     ################################################################################
 
     def step(self, action, i):
-        obs, reward, terminated, truncated, info = super().step(self.beta_action)
+        obs, reward, terminated, truncated, info = super().step(
+            self.beta_action
+        )
 
         t = i / self.CTRL_FREQ
 
-        for j in range(self.NUM_DRONES):  # TODO: add multi-drone support
+        for j in range(
+            self.NUM_DRONES
+        ):  # TODO: add multi-drone support
             #### State message to Betaflight ###########################
-            o = obs[j, :]  # p, q, euler, v, w, rpm (all in world frame)
+            o = obs[
+                j, :
+            ]  # p, q, euler, v, w, rpm (all in world frame)
             p = o[:3]
             q = np.array([o[6], o[3], o[4], o[5]])  # w, x, y, z
             v = o[10:13]
@@ -206,7 +219,9 @@ class BetaAviary(BaseAviary):
                 pass
             else:
                 # print("received message: ", data)
-                _action = np.array(struct.unpack("@ffff", data)).reshape((1, 4))
+                _action = np.array(
+                    struct.unpack("@ffff", data)
+                ).reshape((1, 4))
             self.beta_action[j, :] = _action
 
         return obs, reward, terminated, truncated, info
@@ -244,11 +259,20 @@ class BetaAviary(BaseAviary):
         )
         act_upper_bound = np.array(
             [
-                [self.MAX_RPM, self.MAX_RPM, self.MAX_RPM, self.MAX_RPM]
+                [
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                    self.MAX_RPM,
+                ]
                 for i in range(self.NUM_DRONES)
             ]
         )
-        return spaces.Box(low=act_lower_bound, high=act_upper_bound, dtype=np.float32)
+        return spaces.Box(
+            low=act_lower_bound,
+            high=act_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -316,7 +340,11 @@ class BetaAviary(BaseAviary):
                 for i in range(self.NUM_DRONES)
             ]
         )
-        return spaces.Box(low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32)
+        return spaces.Box(
+            low=obs_lower_bound,
+            high=obs_upper_bound,
+            dtype=np.float32,
+        )
 
     ################################################################################
 
@@ -331,7 +359,12 @@ class BetaAviary(BaseAviary):
             An ndarray of shape (NUM_DRONES, 20) with the state of each drone.
 
         """
-        return np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+        return np.array(
+            [
+                self._getDroneStateVector(i)
+                for i in range(self.NUM_DRONES)
+            ]
+        )
 
     ################################################################################
 
@@ -364,8 +397,13 @@ class BetaAviary(BaseAviary):
             ]
         )  # Betaflight SITL motor mapping
 
-        ret = np.array(np.sqrt(self.MAX_THRUST / 4 / self.KF * remapped_input))
-        assert ret.shape == (self.NUM_DRONES, 4), "Error in preprocess action"
+        ret = np.array(
+            np.sqrt(self.MAX_THRUST / 4 / self.KF * remapped_input)
+        )
+        assert ret.shape == (
+            self.NUM_DRONES,
+            4,
+        ), "Error in preprocess action"
         return ret
 
     ################################################################################

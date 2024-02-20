@@ -18,7 +18,9 @@ import numpy as np
 from gpd.gym_pybullet_drones.utils.utils import sync, str2bool
 from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
 from gpd.gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
-from gpd.gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
+from gpd.gym_pybullet_drones.control.DSLPIDControl import (
+    DSLPIDControl,
+)
 from gpd.gym_pybullet_drones.utils.Logger import Logger
 
 DEFAULT_DRONE = DroneModel("cf2x")
@@ -89,12 +91,18 @@ def run(
             action[j, :], _, _ = ctrl[j].computeControlFromState(
                 control_timestep=env.CTRL_TIMESTEP,
                 state=obs[j],
-                target_pos=np.hstack([TARGET_POS[wp_counters[j], :], INIT_XYZS[j, 2]]),
+                target_pos=np.hstack(
+                    [TARGET_POS[wp_counters[j], :], INIT_XYZS[j, 2]]
+                ),
             )
 
         #### Go to the next way point and loop #####################
         for j in range(2):
-            wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP - 1) else 0
+            wp_counters[j] = (
+                wp_counters[j] + 1
+                if wp_counters[j] < (NUM_WP - 1)
+                else 0
+            )
 
         #### Log the simulation ####################################
         for j in range(2):
@@ -103,7 +111,11 @@ def run(
                 timestamp=i / env.CTRL_FREQ,
                 state=obs[j],
                 control=np.hstack(
-                    [TARGET_POS[wp_counters[j], :], INIT_XYZS[j, 2], np.zeros(9)]
+                    [
+                        TARGET_POS[wp_counters[j], :],
+                        INIT_XYZS[j, 2],
+                        np.zeros(9),
+                    ]
                 ),
             )
 
@@ -129,7 +141,10 @@ def run(
 if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(
-        description="Downwash example script using CtrlAviary and DSLPIDControl"
+        description=(
+            "Downwash example script using CtrlAviary and"
+            " DSLPIDControl"
+        )
     )
     parser.add_argument(
         "--drone",
@@ -185,7 +200,10 @@ if __name__ == "__main__":
         "--colab",
         default=DEFAULT_COLAB,
         type=bool,
-        help='Whether example is being run by a notebook (default: "False")',
+        help=(
+            "Whether example is being run by a notebook (default:"
+            ' "False")'
+        ),
         metavar="",
     )
     ARGS = parser.parse_args()
