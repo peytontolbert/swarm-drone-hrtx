@@ -1,7 +1,7 @@
 import numpy as np
 from simulation_environment import CustomDroneEnv
 from hrtx.hrtx.mimo import MIMOTransformer
-from tokenizer import Tokenizer
+from tokenizerold import Tokenizer
 from constants import max_rpm
 
 def simulate_drones(

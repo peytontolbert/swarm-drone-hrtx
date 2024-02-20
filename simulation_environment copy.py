@@ -48,6 +48,7 @@ class CustomDroneEnv:
         transformer=None,
         gui=DEFAULT_GUI,
         model_dim=DEFAULT_MODEL_DIM,
+        task=DEFAULT_TASK,
         record_video=DEFAULT_RECORD_VISION,
         plot=DEFAULT_PLOT,
         physics=DEFAULT_PHYSICS,
@@ -60,38 +61,13 @@ class CustomDroneEnv:
         colab=DEFAULT_COLAB,
         simulation=True,
     ):
-        """
-        Initializes the CustomDroneEnv class.
-
-        Parameters:
-        - drone_model: The model of the drone to be used in the simulation. Default is DEFAULT_DRONES.
-        - num_drones: The number of drones in the simulation. Default is 3.
-        - transformer: The transformer object for linear transformation of observation features. Default is None.
-        - gui: A boolean flag indicating whether to enable GUI for visualization. Default is DEFAULT_GUI.
-        - model_dim: The dimension of the MIMO transformer model. Default is DEFAULT_MODEL_DIM.
-        - task: The task to be performed in the simulation. Default is DEFAULT_TASK.
-        - record_video: A boolean flag indicating whether to record video of the simulation. Default is DEFAULT_RECORD_VISION.
-        - plot: A boolean flag indicating whether to plot the simulation. Default is DEFAULT_PLOT.
-        - physics: The physics engine to be used in the simulation. Default is DEFAULT_PHYSICS.
-        - obstacles: A boolean flag indicating whether to include obstacles in the simulation. Default is DEFAULT_OBSTACLES.
-        - simulation_freq_hz: The frequency of the simulation in Hz. Default is DEFAULT_SIMULATION_FREQ_HZ.
-        - control_freq_hz: The frequency of the control loop in Hz. Default is DEFAULT_CONTROL_FREQ_HZ.
-        - user_debug_gui: A boolean flag indicating whether to enable user debug GUI. Default is DEFAULT_USER_DEBUG_GUI.
-        - duration_sec: The duration of the simulation in seconds. Default is DEFAULT_DURATION_SEC.
-        - output_folder: The folder path to save the simulation output. Default is DEFAULT_OUTPUT_FOLDER.
-        - colab: A boolean flag indicating whether the simulation is running in a Colab environment. Default is DEFAULT_COLAB.
-        - simulation: A boolean flag indicating whether the simulation is running. Default is True.
-        """
         # Path to the directory where the URDF files are located
         os.path.join(
             os.getcwd(), "render", "gym_pybullet_drones", "assets"
         )
         self.simulation = simulation
-        self.done = {
-            "crashed": False,
-            "reached_target": False,
-        }
         #### Initialize the task instructions ########################
+        self.task = task
         # Assuming this mapping is defined in your __init__ or a similar setup method
         self.task_to_id = {
             "fly in circles around the objective": 1,
@@ -121,7 +97,6 @@ class CustomDroneEnv:
             ]
         )
         # Initialize a circular trajectory
-        self.task = None
         PERIOD = 10
         self.NUM_WP = control_freq_hz * PERIOD
         self.TARGET_POS = np.zeros((self.NUM_WP, 3))
@@ -208,7 +183,6 @@ class CustomDroneEnv:
             shape=(num_drones, 10),
             dtype=np.float32,
         )  # Extended observation space
-        self.obs = None
         # Initialize state attributes as zero arrays
         self.pos = np.zeros(
             (self.num_drones, 3)
@@ -227,7 +201,7 @@ class CustomDroneEnv:
             (self.num_drones, 4)
         )  # Last applied action (e.g., motor speeds)
 
-    def _apply_action(self, drone_id: int, action: dict, i: float):
+    def _apply_action(self, drone_id, action, timestamp):
         """
         Applies computed control to the specified drone and logs the action.
 
@@ -235,16 +209,8 @@ class CustomDroneEnv:
         - drone_id: The ID of the drone to which the action should be applied.
         - action: The computed control action for the drone (ignored in simulation, used in real-world).
         - timestamp: The current simulation time.
-
-        Returns:
-        - computed_actions: A list of computed actions for the drone.
-
-        Notes:
-        - This method applies the computed control action to the specified drone in the simulation environment.
-        - For simulation, the target positions and orientations are used to compute the control actions.
-        - For real-world application, the actions are not applied and a placeholder is provided for future implementation.
+        - simulation: A boolean flag indicating if the operation is in simulation or real-world.
         """
-        print(type(action))
         computed_actions = []
         if self.simulation:
             # For simulation: Apply actions as per the simulation setup described in the provided script.
@@ -272,18 +238,12 @@ class CustomDroneEnv:
             print(f"Computed action: {self.action[drone_id,:]}")
             print(
                 "hstack:"
-                f""" {np.hstack(
-                    [
-                        self.TARGET_POS[self.wp_counters[drone_id], 0:2], 
-                        self.INIT_XYZS[drone_id, 2], 
-                        self.INIT_RPYS[drone_id, :], np.zeros(6)
-                    ]
-                )}"""
+                f" {np.hstack([self.TARGET_POS[self.wp_counters[drone_id], 0:2], self.INIT_XYZS[drone_id, 2], self.INIT_RPYS[drone_id, :], np.zeros(6)])}"
             )
             # Log the action
             logs = self.logger.log(
                 drone=drone_id,
-                timestamp=i / self.env.CTRL_FREQ,
+                timestamp=timestamp,
                 state=self.obs[drone_id],
                 control=np.hstack(
                     [
@@ -304,10 +264,8 @@ class CustomDroneEnv:
             ) % self.NUM_WP
             computed_actions.append(
                 {
-                    "computed_action":self.action[drone_id, :], 
-                    "drone_id":drone_id,
-                    "target_pos":target_pos,
-                    "target_rpy":target_rpy
+                    "computed action: {computed_action} drone:"
+                    " {drone_id}"
                 }
             )
 
@@ -380,34 +338,70 @@ class CustomDroneEnv:
         # observations_tensor = torch.stack(observations).unsqueeze(0)
         return observations
 
-    def generate_action(self, observations):
-        """Generates actions for all drones using the MIMO transformer."""
-        observations = self._get_observation()
+    def generate_and_apply_actions(self):
+        """Generates actions for all drones using the MIMO transformer and applies them."""
+        observations = (
+            self._get_observation()
+        )  # Collect observations in the required tensor format
+        # Ensure observations_tensor is of shape [batch_size, num_drones, feature_size]
         output_tensors = self.mimo_transformer(observations)
-        print(f"{output_tensors}")
-        return output_tensors
-
-    def apply_actions(self, decoded_actions, i):
+        # print(f'Action tensor list: {output_tensors}')
+        # Decode the action tensors into actionable commands
+        decoded_actions = self.decode_transformer_outputs_to_actions(
+            output_tensors
+        )
         results = []
         # print(f'decoded actions: {decoded_actions}')
         for drone_id, action in enumerate(decoded_actions):
             # print(f"Applying action {action} to drone {drone_id}")
             # Directly apply the action to the drone
             result = self._apply_action(
-                drone_id, action, i
+                drone_id, action
             )  # Adjust this line according to your environment's API
             results.append(result)
             # Ensure 'action' is in the appropriate format and scale for the control method used
         return results
 
-    def step(self, i, decoded_actions):
-        """Perform a step in the environment. This will now use generate_and_apply_actions method."""
-        print(f"decoded actions: {decoded_actions}")
+    def decode_transformer_outputs_to_actions(
+        self, output_tensors: List[Tensor]
+    ):
+        decoded_actions = []
+        # Process each tensor in action_tensor_list to convert to actionable commands
+        action_tensor = output_tensors[
+            0
+        ].squeeze()  # Remove batch dimension
+        for i in range(action_tensor.size(0)):  # Iterate over drones
+            # Example decoding process
+            # print(f' i, action_tensor: {i}, {action_tensor}')
+            action_data = (
+                action_tensor[i].detach().cpu().numpy()
+            )  # Assuming a simple conversion; adjust as necessary
+            target_pos = action_data[
+                :3
+            ]  # Example: First 3 values are target position
+            target_rpy = action_data[
+                3:6
+            ]  # Next 3 values are target orientation
+            drone_id = (
+                i  # Assuming the drone ID is the index in the tensor
+            )
+            decoded_actions.append(
+                {
+                    "pos": target_pos,
+                    "rpy": target_rpy,
+                    "drone_id": drone_id,
+                }
+            )
+        # print(f'length of decoded actions: {len(decoded_actions)}')
+        return decoded_actions
+
+    def step(self, i):
         self.obs, reward, terminated, truncated, info = self.env.step(
             self.action
         )
-        results = self.apply_actions(
-            decoded_actions, i
+        """Perform a step in the environment. This will now use generate_and_apply_actions method."""
+        results = (
+            self.generate_and_apply_actions()
         )  # Replace direct action application with MIMO-generated actions
         self.env.render()
         if self.gui:
@@ -418,18 +412,12 @@ class CustomDroneEnv:
         # Load scenario configurations here
         pass
 
-    def reset(self, task="hover"):
+    def reset(self):
         # Your reset logic here
-        if self.task is None:
-            self.task = task
-        if self.action is None:
-            self.action = np.zeros((self.num_drones, 4))
-        if self.obs is None:
-            self.obs = self.env.step(self.action)
         observations = (
             self._get_observation()
         )  # Assuming this returns a list of observations
-        return observations  # Convert list to NumPy array
+        return np.array(observations)  # Convert list to NumPy array
 
     def render(self, mode="human", **kwargs):
         """
@@ -449,6 +437,15 @@ class CustomDroneEnv:
             drone_id
         )[0]
         return not (min_bound < drone_pos < max_bound)
+
+    def _get_reward(self, drone_id):
+        # Example: simple distance-based reward
+        target_pos = np.array([0, 0, 1])  # Assuming a target position
+        drone_pos = np.array(
+            self.client.getBasePositionAndOrientation(drone_id)[0]
+        )
+        distance = np.linalg.norm(target_pos - drone_pos)
+        return -distance
 
     def _log_data(self):
         # Log drone states, actions, and environmental conditions here
@@ -473,38 +470,7 @@ class CustomDroneEnv:
             shape=(self.num_drones, 12),
             dtype=np.float32,
         )
-    def calculate_reward(self, results: List[dict]):
-        """
-        Calculate the reward for the drone's current state or action.
 
-        Parameters:
-        - result: A dictionary or object containing information about the current state or result of an action.
-
-        Returns:
-        - reward: A float representing the calculated reward.
-        """
-        # Example: Calculate reward based on distance to a target and velocity
-        for result in results:
-            print(result)
-            drone_id = result[0].get('drone_id')
-            distance_to_target = np.linalg.norm(self.env._getDroneStateVector(drone_id)- self.TARGET_POS[self.wp_counters[drone_id], :])
-            velocity = np.linalg.norm(result['velocity'])
-            reward = -distance_to_target - velocity  # Example reward function
-        return reward
-
-    def is_done(self, result):
-        """
-        Determine if the episode is done based on the drone's state or environment conditions.
-
-        Parameters:
-        - result: A dictionary or object containing information about the current state or result of an action.
-
-        Returns:
-        - done: A boolean indicating whether the episode is finished.
-        """
-        # Example: Episode ends if the drone crashes or reaches its target
-        done = self.done.get('crashed', False) or self.done.get('reached_target', False)
-        return done
     def _computeInfo(self):
         """
         Compute and return additional info about the environment's state.
@@ -566,3 +532,18 @@ class CustomDroneEnv:
         for drone_id, action in enumerate(drone_actions):
             # Assuming you have a method to apply individual actions
             self.apply_action(drone_id, action)
+
+
+def transform_observation(observation, target_feature_size=512):
+    # Placeholder for the transformation process.
+    # This could involve neural network layers, feature extraction, etc.
+    # For simplicity, we're just expanding the tensor size with zeros to match the target size.
+    current_feature_size = observation.shape[0]
+    if current_feature_size < target_feature_size:
+        padding = torch.zeros(
+            target_feature_size - current_feature_size
+        )
+        transformed_observation = torch.cat([observation, padding])
+        return transformed_observation
+    else:
+        return observation  # or some other transformation as needed
