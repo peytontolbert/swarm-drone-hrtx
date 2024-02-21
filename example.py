@@ -2,7 +2,6 @@ import numpy as np
 from simulation_environment import CustomDroneEnv
 from hrtx.hrtx.mimo import MIMOTransformer
 from tokenizer import Tokenizer
-from constants import max_rpm
 
 def simulate_drones(
     num_drones,
@@ -57,7 +56,7 @@ def simulate_drones(
 
 # Example usage
 simulate_drones(
-    num_drones=5,
+    num_drones=2,
     enable_gui=True,
     simulation_time_step=1 / 240,
     control_time_step=1 / 48,

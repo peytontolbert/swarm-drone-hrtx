@@ -997,6 +997,7 @@ class BaseAviary(gym.Env):
             flags=p.LINK_FRAME,
             physicsClientId=self.CLIENT,
         )
+        return {"drone_id": self.DRONE_IDS[nth_drone], "rpm": rpm, "torque": z_torque, "forces": forces}
 
     ################################################################################
 

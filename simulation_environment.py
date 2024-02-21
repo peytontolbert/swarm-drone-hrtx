@@ -157,7 +157,6 @@ class CustomDroneEnv:
             obstacles=obstacles,
             user_debug_gui=user_debug_gui,
         )
-        self.env.reset()
         # self.client = bullet_client.BulletClient(connection_mode=connection_mode)
         # self.client = pybullet.connect(pybullet.DIRECT)  # Instead of p.GUI
         # if gui:
@@ -227,7 +226,7 @@ class CustomDroneEnv:
             (self.num_drones, 4)
         )  # Last applied action (e.g., motor speeds)
 
-    def _apply_action(self, drone_id: int, action: dict, i: float):
+    def _apply_action(self, drone_id: int, action: list, i: float):
         """
         Applies computed control to the specified drone and logs the action.
 
@@ -244,73 +243,20 @@ class CustomDroneEnv:
         - For simulation, the target positions and orientations are used to compute the control actions.
         - For real-world application, the actions are not applied and a placeholder is provided for future implementation.
         """
-        print(type(action))
+        #print(type(action))
         computed_actions = []
         if self.simulation:
             # For simulation: Apply actions as per the simulation setup described in the provided script.
             # Assuming 'action' contains target positions and orientations for simulation purposes.
             # Here, we directly use the target positions and orientations defined globally (e.g., TARGET_POS)
             # and compute the control actions as done in the example script.
-            print(f"action: {action}")
+            #print(f"action: {action}")
+            #n_action = action.detach().numpy()
+            #print(n_action)
             # The 'computed_action' would then be applied through the simulation environment's step method.
             # This step is typically done for all drones together, so you might adjust this part based on your simulation's API.
-            target_pos = action.get("pos")
-            target_rpy = action.get("rpy")
-            self.TARGET_POS[self.wp_counters[drone_id], :] = (
-                target_pos
-            )
-            drone_id = action.get("drone_id")
-            # Compute the control command based on the target state
-            self.action[drone_id, :], _, _ = self.ctrl[
-                drone_id
-            ].computeControlFromState(
-                control_timestep=self.env.CTRL_TIMESTEP,
-                state=self.obs[drone_id],
-                target_pos=target_pos,
-                target_rpy=target_rpy,
-            )
-            print(f"Computed action: {self.action[drone_id,:]}")
-            print(
-                "hstack:"
-                f""" {np.hstack(
-                    [
-                        self.TARGET_POS[self.wp_counters[drone_id], 0:2], 
-                        self.INIT_XYZS[drone_id, 2], 
-                        self.INIT_RPYS[drone_id, :], np.zeros(6)
-                    ]
-                )}"""
-            )
-            # Log the action
-            logs = self.logger.log(
-                drone=drone_id,
-                timestamp=i / self.env.CTRL_FREQ,
-                state=self.obs[drone_id],
-                control=np.hstack(
-                    [
-                        self.TARGET_POS[
-                            self.wp_counters[drone_id], 0:2
-                        ],
-                        self.INIT_XYZS[drone_id, 0:2],
-                        self.INIT_RPYS[drone_id, :],
-                        np.zeros(5),
-                    ]
-                ),
-            )
-            print(f"logs: {logs}")
-            # Update waypoint counters or other state management logic as needed
-            # For example, if using waypoints, move to the next waypoint as appropriate
-            self.wp_counters[drone_id] = (
-                self.wp_counters[drone_id] + 1
-            ) % self.NUM_WP
-            computed_actions.append(
-                {
-                    "computed_action":self.action[drone_id, :], 
-                    "drone_id":drone_id,
-                    "target_pos":target_pos,
-                    "target_rpy":target_rpy
-                }
-            )
-
+            #physics = self.env._physics(action,drone_id)
+            computed_actions.append(action)
         else:
             target_pos = self.TARGET_POS[
                 self.wp_counters[drone_id], :
@@ -362,45 +308,49 @@ class CustomDroneEnv:
         # print(transformed_observation.shape)
         return transformed_observation
 
-    def _get_observation(self):
+    def _get_observations(self):
         """Override to collect observations for all drones, formatted as tensors."""
         observations = []
         for drone_id in range(self.num_drones):
             drone_observation = self.env._getDroneStateVector(
                 drone_id
             )  # Collect per-drone observations
-            #
-            transformed_observation = self.transform_observation(
-                drone_observation
-            )  # Transform it
             observations.append(
-                transformed_observation
-            )  # Convert to tensors and batch
-        # Stack observations to match [batch_size, num_drones, feature_size]
-        # observations_tensor = torch.stack(observations).unsqueeze(0)
+                drone_observation
+            )  # Append to the list of observations
         return observations
 
     def generate_action(self, observations):
         """Generates actions for all drones using the MIMO transformer."""
-        observations = self._get_observation()
-        output_tensors = self.mimo_transformer(observations)
-        print(f"{output_tensors}")
+        observations = self._get_observations()
+        transformed_observations = []
+        for observation in observations:
+            transformed_observation = self.transform_observation(
+                observation
+            )
+            transformed_observations.append(
+                transformed_observation
+            )
+        output_tensors = self.mimo_transformer(
+            transformed_observations
+            )
+        print(f"actions: {output_tensors}")
         return output_tensors
 
-    def apply_actions(self, decoded_actions, i):
+    def apply_actions(self, decoded_actions: List, i):
         results = []
-        # print(f'decoded actions: {decoded_actions}')
         for drone_id, action in enumerate(decoded_actions):
-            # print(f"Applying action {action} to drone {drone_id}")
-            # Directly apply the action to the drone
-            result = self._apply_action(
+            result = self._apply_action( # Directly apply the action to the drone
                 drone_id, action, i
             )  # Adjust this line according to your environment's API
             results.append(result)
-            # Ensure 'action' is in the appropriate format and scale for the control method used
         return results
 
     def step(self, i, decoded_actions):
+        # Inside _apply_action or similar method, before using action as a NumPy array
+        if isinstance(decoded_actions, torch.Tensor):
+            decoded_actions = decoded_actions.detach().numpy()  # This conversion is safe
+        self.action = decoded_actions
         """Perform a step in the environment. This will now use generate_and_apply_actions method."""
         print(f"decoded actions: {decoded_actions}")
         self.obs, reward, terminated, truncated, info = self.env.step(
@@ -408,12 +358,46 @@ class CustomDroneEnv:
         )
         results = self.apply_actions(
             decoded_actions, i
-        )  # Replace direct action application with MIMO-generated actions
+        )
         self.env.render()
         if self.gui:
             sync(i, self.START, self.env.CTRL_TIMESTEP)
         return results
+    
+    def calculate_reward(self, results: List[dict], task):
+        """
+        Calculate the reward for the drone's current state, focusing on hover stability.
 
+        Parameters:
+        - results: A list of dictionaries containing information about the current state or result of an action for each drone.
+        - task: The current task (e.g., "hover") to tailor the reward calculation.
+
+        Returns:
+        - reward: A float representing the calculated reward.
+        """
+        reward = 0  # Initialize reward
+
+        if task == "hover":
+            for result in results:
+                # Assuming 'result' dictionary contains 'position' and 'velocity' for each drone
+                # And TARGET_POS is the desired hover position (could be initial position or a specified point)
+                observations = self._get_observations()
+                print(f"observations: {observations}")
+                print(f"observations shape: {observations.shape}")
+                drone_position = np.array(result['position'])  # Current position of the drone
+                drone_velocity = np.array(result['velocity'])  # Current velocity of the drone
+
+                # Calculate distance to the target position (could include altitude as part of the position)
+                distance_to_target = np.linalg.norm(drone_position - self.TARGET_POS)
+
+                # Calculate the magnitude of the velocity (should be close to 0 for a good hover)
+                velocity_magnitude = np.linalg.norm(drone_velocity)
+
+                # Penalize distance to target position and any movement
+                # Adjust weights (0.5, 1.0 in this case) as necessary to balance the importance of position vs. velocity
+                reward -= 0.5 * distance_to_target + 1.0 * velocity_magnitude
+
+        return reward
     def load_scenario(self, scenario_file):
         # Load scenario configurations here
         pass
@@ -427,7 +411,7 @@ class CustomDroneEnv:
         if self.obs is None:
             self.obs = self.env.step(self.action)
         observations = (
-            self._get_observation()
+            self._get_observations()
         )  # Assuming this returns a list of observations
         return observations  # Convert list to NumPy array
 
@@ -473,25 +457,7 @@ class CustomDroneEnv:
             shape=(self.num_drones, 12),
             dtype=np.float32,
         )
-    def calculate_reward(self, results: List[dict]):
-        """
-        Calculate the reward for the drone's current state or action.
-
-        Parameters:
-        - result: A dictionary or object containing information about the current state or result of an action.
-
-        Returns:
-        - reward: A float representing the calculated reward.
-        """
-        # Example: Calculate reward based on distance to a target and velocity
-        for result in results:
-            print(result)
-            drone_id = result[0].get('drone_id')
-            distance_to_target = np.linalg.norm(self.env._getDroneStateVector(drone_id)- self.TARGET_POS[self.wp_counters[drone_id], :])
-            velocity = np.linalg.norm(result['velocity'])
-            reward = -distance_to_target - velocity  # Example reward function
-        return reward
-
+    
     def is_done(self, result):
         """
         Determine if the episode is done based on the drone's state or environment conditions.

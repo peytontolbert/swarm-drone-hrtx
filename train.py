@@ -4,7 +4,6 @@ import numpy as np
 from simulation_environment import CustomDroneEnv
 from tokenizer import Tokenizer
 from hrtx.hrtx.mimo import MIMOTransformer
-from constants import MAX_RPM
 
 # Initialize the environment and the transformer
 num_drones = 5
@@ -51,7 +50,7 @@ for episode in range(num_episodes):
     while True:
         # Get the action probabilities from the transformer
         action_probs = env.generate_action(state)
-        actions = tokenizer.decode_transformer_outputs(action_probs, MAX_RPM)
+        actions = tokenizer.decode_transformer_outputs(action_probs)
 
         # Take a step in the environment
         results = env.step(step, actions)
