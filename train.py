@@ -1,6 +1,8 @@
 # FILEPATH: /D:/resumewebsite/functioncalling/drone-swarm-fresh/train.py
 
 import numpy as np
+import torch
+import torch.nn.functional as F
 from simulation_environment import CustomDroneEnv
 from tokenizer import Tokenizer
 from hrtx.hrtx.mimo import MIMOTransformer
@@ -36,13 +38,13 @@ def calculate_return(rewards, discount_factor):
         reward * (discount_factor**i)
         for i, reward in enumerate(rewards)
     )
-
+task="hover"
 
 # Training loop
 for episode in range(num_episodes):
     # Reset the environment and the episode data
     step = 0
-    state = env.reset(task="hover")
+    state = env.reset(task=task)
     episode_rewards = []
     episode_gradients = []
 
@@ -50,14 +52,26 @@ for episode in range(num_episodes):
     while True:
         # Get the action probabilities from the transformer
         action_probs = env.generate_action(state)
+        logits = action_probs.squeeze(0)  # Remove batch dimension if there's only one
+        probabilities = F.softmax(logits, dim=-1)
+        print(f"probabilities: {probabilities}")
         actions = tokenizer.decode_transformer_outputs(action_probs)
 
         # Take a step in the environment
         results = env.step(step, actions)
-        reward = env.calculate_reward(results)
+        reward, obs = env.calculate_reward(task)
         done = env.is_done(results)
-        next_state = results["state"]
+        next_state = obs
         # Calculate the gradient of the log probability of the action
+        # Create a distribution to sample from
+        m = torch.distributions.Categorical(probabilities)
+
+        # Sample actions from the distribution
+        actions = m.sample()
+
+        # Get the log probabilities of the sampled actions
+        log_probs = m.log_prob(actions)
+        print(f"log_probs: {log_probs}")
         gradient = -np.log(action_probs[actions])
 
         # Store the reward and the gradient

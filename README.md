@@ -7,7 +7,7 @@ Hivemind Multi-Modality Transformer (HMMT) Model Architecture. Multi-Modality Mo
 Utilizing the HRTX model for decision-making processes, commits actions to a swarm of drones through controlling their rpms.
 
 ## Install
-`pip install hrtx`
+`pip install -r requirements.txt`
 
 ## Usage
 

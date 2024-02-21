@@ -17,14 +17,10 @@ class Tokenizer:
     def decode_transformer_outputs(
         self, output_tensors: List[Tensor]
     ):
-        action_tensor = output_tensors[0]  # Assuming the first tensor is what we need.
-        if isinstance(action_tensor, (list, tuple)):
-            # If action_tensor is still a list/tuple, access its first element.
-            action_tensor = action_tensor[0]
-        print("action tensor: ", action_tensor)
-        print("action tensor shape: ", action_tensor.shape)
+        print("action tensor: ", output_tensors)
+        print("action tensor shape: ", output_tensors.shape)
         # Scale the actions to the RPM range.
-        scaled_action_reshaped = self.linear(action_tensor)
+        scaled_action_reshaped = self.linear(output_tensors)
         print("action tensor reshaped: ", scaled_action_reshaped)   
         print("action tensor reshaped: ", scaled_action_reshaped.shape) 
         action_squeezed = scaled_action_reshaped.squeeze(0)

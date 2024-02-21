@@ -15,7 +15,7 @@ from typing import List
 import os
 from torch import nn, Tensor
 import time
-
+from rewards import calculate_hover_reward
 DEFAULT_DRONES = DroneModel.CF2X
 DEFAULT_NUM_DRONES = 3
 DEFAULT_PHYSICS = Physics("pyb")
@@ -334,8 +334,12 @@ class CustomDroneEnv:
         output_tensors = self.mimo_transformer(
             transformed_observations
             )
+        action_tensor = output_tensors[0]  # Assuming the first tensor is what we need.
+        if isinstance(action_tensor, (list, tuple)):
+            # If action_tensor is still a list/tuple, access its first element.
+            action_tensor = action_tensor[0]
         print(f"actions: {output_tensors}")
-        return output_tensors
+        return action_tensor
 
     def apply_actions(self, decoded_actions: List, i):
         results = []
@@ -356,48 +360,43 @@ class CustomDroneEnv:
         self.obs, reward, terminated, truncated, info = self.env.step(
             self.action
         )
-        results = self.apply_actions(
-            decoded_actions, i
-        )
         self.env.render()
         if self.gui:
             sync(i, self.START, self.env.CTRL_TIMESTEP)
+        results = self._get_observations(
+        )
         return results
     
-    def calculate_reward(self, results: List[dict], task):
+    def calculate_reward(self, task: str):
         """
         Calculate the reward for the drone's current state, focusing on hover stability.
 
         Parameters:
-        - results: A list of dictionaries containing information about the current state or result of an action for each drone.
         - task: The current task (e.g., "hover") to tailor the reward calculation.
 
         Returns:
         - reward: A float representing the calculated reward.
         """
         reward = 0  # Initialize reward
-
         if task == "hover":
-            for result in results:
-                # Assuming 'result' dictionary contains 'position' and 'velocity' for each drone
-                # And TARGET_POS is the desired hover position (could be initial position or a specified point)
-                observations = self._get_observations()
-                print(f"observations: {observations}")
-                print(f"observations shape: {observations.shape}")
-                drone_position = np.array(result['position'])  # Current position of the drone
-                drone_velocity = np.array(result['velocity'])  # Current velocity of the drone
+            for nth_drone in range(self.num_drones):
+                state_vector = self.env._getDroneStateVector(nth_drone)
+                # Extract position and velocity from the state vector
+                drone_position = state_vector[:3]  # Assuming the first 3 elements are x, y, z position
+                drone_velocity = state_vector[9:12]  # Assuming elements 9 to 11 are vx, vy, vz velocity
 
-                # Calculate distance to the target position (could include altitude as part of the position)
+                # Calculate distance to the target position
                 distance_to_target = np.linalg.norm(drone_position - self.TARGET_POS)
 
                 # Calculate the magnitude of the velocity (should be close to 0 for a good hover)
                 velocity_magnitude = np.linalg.norm(drone_velocity)
 
                 # Penalize distance to target position and any movement
-                # Adjust weights (0.5, 1.0 in this case) as necessary to balance the importance of position vs. velocity
+                # Adjust weights as necessary to balance the importance of position vs. velocity
                 reward -= 0.5 * distance_to_target + 1.0 * velocity_magnitude
 
-        return reward
+        return reward, state_vector
+
     def load_scenario(self, scenario_file):
         # Load scenario configurations here
         pass
