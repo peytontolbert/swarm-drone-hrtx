@@ -23,8 +23,7 @@ class Tokenizer:
         scaled_action_reshaped = self.linear(output_tensors)
         print("action tensor reshaped: ", scaled_action_reshaped)   
         print("action tensor reshaped: ", scaled_action_reshaped.shape) 
-        action_squeezed = scaled_action_reshaped.squeeze(0)
-        action_squeezed_scaled = action_squeezed * self.max_rpm 
+        action_squeezed_scaled = scaled_action_reshaped * self.max_rpm 
         print(f"action_squeezed_scaled: {action_squeezed_scaled}")
         actions = self._preprocessAction(action_squeezed_scaled)
         print(f'processed actions: {actions}')

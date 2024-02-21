@@ -201,17 +201,7 @@ class CustomDroneEnv:
         self.action_space = spaces.Box(
             low=-1, high=1, shape=(num_drones, 7), dtype=np.float32
         )  # Extended action space
-        self.observation_space = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(num_drones, 10),
-            dtype=np.float32,
-        )  # Extended observation space
         self.obs = None
-        # Initialize state attributes as zero arrays
-        self.pos = np.zeros(
-            (self.num_drones, 3)
-        )  # Position (x, y, z)
         self.quat = np.zeros(
             (self.num_drones, 4)
         )  # Quaternion (x, y, z, w)
@@ -339,7 +329,8 @@ class CustomDroneEnv:
             # If action_tensor is still a list/tuple, access its first element.
             action_tensor = action_tensor[0]
         print(f"actions: {output_tensors}")
-        return action_tensor
+        action_squeezed = action_tensor.squeeze(0)
+        return action_squeezed
 
     def apply_actions(self, decoded_actions: List, i):
         results = []
@@ -367,7 +358,7 @@ class CustomDroneEnv:
         )
         return results
     
-    def calculate_reward(self, task: str):
+    def calculate_reward(self, task: str, results: np.ndarray, done: bool=False):
         """
         Calculate the reward for the drone's current state, focusing on hover stability.
 
@@ -377,6 +368,7 @@ class CustomDroneEnv:
         Returns:
         - reward: A float representing the calculated reward.
         """
+
         reward = 0  # Initialize reward
         if task == "hover":
             for nth_drone in range(self.num_drones):
@@ -457,7 +449,7 @@ class CustomDroneEnv:
             dtype=np.float32,
         )
     
-    def is_done(self, result):
+    def is_done(self, results, task):
         """
         Determine if the episode is done based on the drone's state or environment conditions.
 
@@ -467,67 +459,28 @@ class CustomDroneEnv:
         Returns:
         - done: A boolean indicating whether the episode is finished.
         """
+        # Example condition: Check if any drone has crashed (assuming altitude is at index 2 and considering a threshold)
+        for state_vector in results:
+            altitude = state_vector[2]
+            if altitude < 0.1:  # Assuming the drone is considered crashed if altitude is below 0.1
+                print("A drone has crashed.")
+                done = True
+                break
+        if task == "hover":
+            print(f"checking hover result: {results}")
+            for i, drone_obs in enumerate(results):
+                done = self._check_hover(i)
         # Example: Episode ends if the drone crashes or reaches its target
         done = self.done.get('crashed', False) or self.done.get('reached_target', False)
         return done
-    def _computeInfo(self):
-        """
-        Compute and return additional info about the environment's state.
+    def _check_hover(self, nth_drone):
+        """Check if the specified drone is hovering within tolerance."""
+        state_vector = self.env._getDroneStateVector(nth_drone)
+        # Assuming the structure of state_vector aligns with the ordering in your description
+        current_position = state_vector[:3]  # First 3 elements are x, y, z position
+        current_velocity = state_vector[9:12]  # Elements 9 to 11 are vx, vy, vz velocity
 
-        This method should return a dictionary containing information
-        relevant to the current state of the environment or the simulation.
-        """
-        info = {}
-        for idx, drone_id in enumerate(self.drone_ids):
-            # Example: Gather some basic information for each drone
-            pos, _ = pybullet.getBasePositionAndOrientation(
-                drone_id, physicsClientId=self.env
-            )
-            vel, _ = pybullet.getBaseVelocity(
-                drone_id, physicsClientId=self.env
-            )
+        position_deviation = np.linalg.norm(current_position - self.target_position)
+        velocity_magnitude = np.linalg.norm(current_velocity)
 
-            # Store information in the dictionary
-            info[f"drone_{idx}_position"] = pos
-            info[f"drone_{idx}_velocity"] = vel
-
-        # You can add more environment-specific information here as needed
-        return info
-
-    def _computeObs(self):
-        """
-        Compute and return the current observation of the environment.
-        This method should return an array or a dictionary of observations
-        that match the structure defined in self.observation_space.
-        Observations now include position, orientation (Euler angles), linear velocity, and angular velocity.
-        """
-        observations = []
-        for drone_id in self.drone_ids:
-            # Retrieve position, orientation (as quaternion), and velocities for each drone
-            pos, orn = pybullet.getBasePositionAndOrientation(
-                drone_id, physicsClientId=self.env
-            )
-            lin_vel, ang_vel = pybullet.getBaseVelocity(
-                drone_id, physicsClientId=self.env
-            )
-            # Convert orientation from quaternion to Euler angles for consistency with control inputs
-            euler_orn = pybullet.getEulerFromQuaternion(orn)
-            # Combine all components into a single observation array for each drone
-            drone_obs = np.concatenate(
-                [pos, euler_orn, lin_vel, ang_vel]
-            )
-            observations.append(drone_obs)
-        # Return observations in a structured array format that matches your observation space
-        # Ensure the observations array is correctly shaped according to your environment's observation_space
-        return np.stack(observations)
-
-    def apply_high_level_command(self, command):
-        """
-        Applies a high-level command to the environment.
-        """
-        drone_actions = self.mimo_transformer.transform_command(
-            command
-        )
-        for drone_id, action in enumerate(drone_actions):
-            # Assuming you have a method to apply individual actions
-            self.apply_action(drone_id, action)
+        return position_deviation <= self.hover_tolerance and velocity_magnitude < self.hover_tolerance

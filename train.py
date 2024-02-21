@@ -51,32 +51,24 @@ for episode in range(num_episodes):
     # Loop for each step in the episode
     while True:
         # Get the action probabilities from the transformer
-        action_probs = env.generate_action(state)
-        logits = action_probs.squeeze(0)  # Remove batch dimension if there's only one
+        logits = env.generate_action(state)
         probabilities = F.softmax(logits, dim=-1)
+        m = torch.distributions.Categorical(logits=logits)# Create a distribution to sample from
+        actions_sampled = m.sample()# Sample actions from the distribution
+        # Get the log probabilities of the sampled actions
+        log_probs = m.log_prob(actions_sampled)
         print(f"probabilities: {probabilities}")
-        actions = tokenizer.decode_transformer_outputs(action_probs)
-
+        print(f"actions_sampled: {actions_sampled}")
+        actions = tokenizer.decode_transformer_outputs(logits)
         # Take a step in the environment
         results = env.step(step, actions)
-        reward, obs = env.calculate_reward(task)
-        done = env.is_done(results)
-        next_state = obs
-        # Calculate the gradient of the log probability of the action
-        # Create a distribution to sample from
-        m = torch.distributions.Categorical(probabilities)
-
-        # Sample actions from the distribution
-        actions = m.sample()
-
-        # Get the log probabilities of the sampled actions
-        log_probs = m.log_prob(actions)
-        print(f"log_probs: {log_probs}")
-        gradient = -np.log(action_probs[actions])
+        reward, obs = env.calculate_reward(task, results)
+        done = env.is_done(results,task)
+        next_state = results
 
         # Store the reward and the gradient
         episode_rewards.append(reward)
-        episode_gradients.append(gradient)
+        episode_gradients.append(log_probs)
 
         # If the episode is done, update the weights of the transformer
         if done:
