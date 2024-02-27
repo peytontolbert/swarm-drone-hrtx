@@ -47,7 +47,6 @@ def simulate_drones(
         action_probs = env.generate_action(state)
         actions = tokenizer.decode_transformer_outputs(action_probs)
         results = env.step(i, actions)
-        print(f"results: {results}")
         current_time += control_time_step
 
     # Cleanup and closing of the environment if necessary
@@ -56,7 +55,7 @@ def simulate_drones(
 
 # Example usage
 simulate_drones(
-    num_drones=2,
+    num_drones=5,
     enable_gui=True,
     simulation_time_step=1 / 240,
     control_time_step=1 / 48,

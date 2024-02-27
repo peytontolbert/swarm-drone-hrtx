@@ -1,11 +1,14 @@
 import pybullet
 from gpd.gym_pybullet_drones.envs.CtrlAviary import (
-    CtrlAviary,
+    CtrlAviary, 
+)
+from gpd.gym_pybullet_drones.envs.MultiHoverAviary import (
+    MultiHoverAviary,
 )
 from gpd.gym_pybullet_drones.control.DSLPIDControl import (
     DSLPIDControl,
 )
-from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics
+from gpd.gym_pybullet_drones.utils.enums import DroneModel, Physics, ActionType, ObservationType
 from gpd.gym_pybullet_drones.utils.Logger import Logger
 from gpd.gym_pybullet_drones.utils.utils import sync
 from gym import spaces
@@ -15,7 +18,6 @@ from typing import List
 import os
 from torch import nn, Tensor
 import time
-from rewards import calculate_hover_reward
 DEFAULT_DRONES = DroneModel.CF2X
 DEFAULT_NUM_DRONES = 3
 DEFAULT_PHYSICS = Physics("pyb")
@@ -94,9 +96,10 @@ class CustomDroneEnv:
         #### Initialize the task instructions ########################
         # Assuming this mapping is defined in your __init__ or a similar setup method
         self.task_to_id = {
-            "fly in circles around the objective": 1,
+            "circles": 1,
             "fly into objective": 2,
             "hover": 3,
+            "liftoff": 4,
         }  # Example mapping
         # self.CLIENT = pybullet.connect(pybullet.GUI if gui else pybullet.DIRECT)
         #### Initialize the simulation #############################
@@ -122,6 +125,8 @@ class CustomDroneEnv:
         )
         # Initialize a circular trajectory
         self.task = None
+        self.hover = None
+        self.drone_info = None
         PERIOD = 10
         self.NUM_WP = control_freq_hz * PERIOD
         self.TARGET_POS = np.zeros((self.NUM_WP, 3))
@@ -328,7 +333,6 @@ class CustomDroneEnv:
         if isinstance(action_tensor, (list, tuple)):
             # If action_tensor is still a list/tuple, access its first element.
             action_tensor = action_tensor[0]
-        print(f"actions: {output_tensors}")
         action_squeezed = action_tensor.squeeze(0)
         return action_squeezed
 
@@ -347,15 +351,16 @@ class CustomDroneEnv:
             decoded_actions = decoded_actions.detach().numpy()  # This conversion is safe
         self.action = decoded_actions
         """Perform a step in the environment. This will now use generate_and_apply_actions method."""
-        print(f"decoded actions: {decoded_actions}")
-        self.obs, reward, terminated, truncated, info = self.env.step(
-            self.action
+        #print(f"decoded actions: {decoded_actions}")
+        obs, reward, terminated, truncated, info = self.env.step(
+            decoded_actions
         )
-        self.env.render()
+        self.drone_info = self.env.render()
         if self.gui:
             sync(i, self.START, self.env.CTRL_TIMESTEP)
         results = self._get_observations(
         )
+        self.obs = results
         return results
     
     def calculate_reward(self, task: str, results: np.ndarray, done: bool=False):
@@ -378,7 +383,7 @@ class CustomDroneEnv:
                 drone_velocity = state_vector[9:12]  # Assuming elements 9 to 11 are vx, vy, vz velocity
 
                 # Calculate distance to the target position
-                distance_to_target = np.linalg.norm(drone_position - self.TARGET_POS)
+                distance_to_target = np.linalg.norm(drone_position - self.hover.TARGET_POS)
 
                 # Calculate the magnitude of the velocity (should be close to 0 for a good hover)
                 velocity_magnitude = np.linalg.norm(drone_velocity)
@@ -386,12 +391,13 @@ class CustomDroneEnv:
                 # Penalize distance to target position and any movement
                 # Adjust weights as necessary to balance the importance of position vs. velocity
                 reward -= 0.5 * distance_to_target + 1.0 * velocity_magnitude
-
+        elif task == "liftoff":
+            for nth_drone in range(self.num_drones):
+                state_vector = self.env._getDroneStateVector(nth_drone)
+                # Extract position and velocity from the state vector
+                drone_position = state_vector[:3]  # Assuming the first 3 elements are x, y, z position
+                ###### FINISH THIS TASK ######
         return reward, state_vector
-
-    def load_scenario(self, scenario_file):
-        # Load scenario configurations here
-        pass
 
     def reset(self, task="hover"):
         # Your reset logic here
@@ -404,6 +410,21 @@ class CustomDroneEnv:
         observations = (
             self._get_observations()
         )  # Assuming this returns a list of observations
+        if task == "hover":
+            self.hover = MultiHoverAviary(
+                drone_model = DroneModel.CF2X,
+                num_drones = self.num_drones,
+                neighbourhood_radius = self.env.NEIGHBOURHOOD_RADIUS,
+                initial_xyzs=self.env.INIT_XYZS,
+                initial_rpys=self.env.INIT_RPYS,
+                physics = Physics.PYB,
+                pyb_freq = self.env.PYB_FREQ,
+                ctrl_freq = self.env.CTRL_FREQ,
+                gui=False,
+                record=False,
+                obs = ObservationType.KIN,
+                act = ActionType.RPM,
+            )
         return observations  # Convert list to NumPy array
 
     def render(self, mode="human", **kwargs):
@@ -425,29 +446,6 @@ class CustomDroneEnv:
         )[0]
         return not (min_bound < drone_pos < max_bound)
 
-    def _log_data(self):
-        # Log drone states, actions, and environmental conditions here
-        pass
-
-    def _actionSpace(self):
-        # Example: Define an action space where each action is a continuous value between -1 and 1
-        # Adjust the shape as necessary for your specific use case
-        return spaces.Box(
-            low=-1,
-            high=1,
-            shape=(self.num_drones, 4),
-            dtype=np.float32,
-        )
-
-    def _observationSpace(self):
-        # Example: Define an observation space with arbitrary bounds
-        # Adjust the shape as necessary based on what your environment observes
-        return spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(self.num_drones, 12),
-            dtype=np.float32,
-        )
     
     def is_done(self, results, task):
         """
@@ -460,18 +458,17 @@ class CustomDroneEnv:
         - done: A boolean indicating whether the episode is finished.
         """
         # Example condition: Check if any drone has crashed (assuming altitude is at index 2 and considering a threshold)
-        for state_vector in results:
-            altitude = state_vector[2]
-            if altitude < 0.1:  # Assuming the drone is considered crashed if altitude is below 0.1
+        for drone in self.drone_info:
+            altitude = drone['position'][2]
+            if altitude < 0.2:  # Assuming the drone is considered crashed if altitude is below 0.1
                 print("A drone has crashed.")
                 done = True
                 break
         if task == "hover":
             print(f"checking hover result: {results}")
-            for i, drone_obs in enumerate(results):
-                done = self._check_hover(i)
-        # Example: Episode ends if the drone crashes or reaches its target
-        done = self.done.get('crashed', False) or self.done.get('reached_target', False)
+            done = self.hover._computeTerminated()
+        else:# Example: Episode ends if the drone crashes or reaches its target
+            done = self.done.get('crashed', False) or self.done.get('reached_target', False)
         return done
     def _check_hover(self, nth_drone):
         """Check if the specified drone is hovering within tolerance."""
@@ -479,8 +476,43 @@ class CustomDroneEnv:
         # Assuming the structure of state_vector aligns with the ordering in your description
         current_position = state_vector[:3]  # First 3 elements are x, y, z position
         current_velocity = state_vector[9:12]  # Elements 9 to 11 are vx, vy, vz velocity
-
         position_deviation = np.linalg.norm(current_position - self.target_position)
         velocity_magnitude = np.linalg.norm(current_velocity)
-
         return position_deviation <= self.hover_tolerance and velocity_magnitude < self.hover_tolerance
+
+    def calculate_hover_reward(self, nth_drone, target_position):
+        """
+        Calculate the reward for maintaining a hover position.
+        Parameters:
+        - nth_drone: Index of the drone for which to calculate the reward.
+        - target_position: The target position (x, y, z) the drone should maintain.
+
+        Returns:
+        - reward: A float representing the calculated reward.
+        """
+        state_vector = self.env._getDroneStateVector(nth_drone)
+        position = state_vector[:3]  # Extract position
+        velocity = state_vector[9:12]  # Extract linear velocity
+        angular_velocity = state_vector[12:15]  # Extract angular velocity
+
+        # Calculate the distance from the target position
+        distance_to_target = np.linalg.norm(position - target_position)
+
+        # Calculate the magnitude of velocity and angular velocity
+        velocity_magnitude = np.linalg.norm(velocity)
+        angular_velocity_magnitude = np.linalg.norm(angular_velocity)
+
+        # Define weights for each component of the reward
+        weight_distance = -1.0  # Negative because we want to minimize distance
+        weight_velocity = -0.5  # Negative because we want to minimize velocity
+        weight_angular_velocity = -0.5  # Negative because we want to minimize angular velocity
+
+        # Calculate weighted components of the reward
+        reward_distance = weight_distance * distance_to_target
+        reward_velocity = weight_velocity * velocity_magnitude
+        reward_angular_velocity = weight_angular_velocity * angular_velocity_magnitude
+
+        # Sum the components to get the total reward
+        total_reward = reward_distance + reward_velocity + reward_angular_velocity
+
+        return total_reward

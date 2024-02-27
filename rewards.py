@@ -10,7 +10,7 @@ def calculate_hover_reward(self, nth_drone, target_position):
     Returns:
     - reward: A float representing the calculated reward.
     """
-    state_vector = self._getDroneStateVector(nth_drone)
+    state_vector = self.env._getDroneStateVector(nth_drone)
     position = state_vector[:3]  # Extract position
     velocity = state_vector[9:12]  # Extract linear velocity
     angular_velocity = state_vector[12:15]  # Extract angular velocity

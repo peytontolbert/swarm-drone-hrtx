@@ -603,6 +603,7 @@ class BaseAviary(gym.Env):
                 / (time.time() - self.RESET_TIME),
             ),
         )
+        drone_info = []
         for i in range(self.NUM_DRONES):
             print(
                 "[INFO] BaseAviary.render() ——— drone {:d}".format(i),
@@ -625,6 +626,15 @@ class BaseAviary(gym.Env):
                     self.ang_v[i, 2],
                 ),
             )
+            drone_info.append(
+                {
+                    "position": self.pos[i],
+                    "velocity": self.vel[i],
+                    "rpy": self.rpy[i],
+                    "angular_velocity": self.ang_v[i],
+                }
+            )
+        return drone_info
 
     ################################################################################
 

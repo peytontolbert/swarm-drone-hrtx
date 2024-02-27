@@ -17,16 +17,10 @@ class Tokenizer:
     def decode_transformer_outputs(
         self, output_tensors: List[Tensor]
     ):
-        print("action tensor: ", output_tensors)
-        print("action tensor shape: ", output_tensors.shape)
         # Scale the actions to the RPM range.
         scaled_action_reshaped = self.linear(output_tensors)
-        print("action tensor reshaped: ", scaled_action_reshaped)   
-        print("action tensor reshaped: ", scaled_action_reshaped.shape) 
         action_squeezed_scaled = scaled_action_reshaped * self.max_rpm 
-        print(f"action_squeezed_scaled: {action_squeezed_scaled}")
         actions = self._preprocessAction(action_squeezed_scaled)
-        print(f'processed actions: {actions}')
         return actions
     
     def _preprocessAction(self, action):

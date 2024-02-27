@@ -19,7 +19,7 @@ transformer = MIMOTransformer(
 tokenizer = Tokenizer(num_drones, max_rpm=1000)
 env = CustomDroneEnv(
     num_drones=num_drones,
-    gui=False,
+    gui=True,
     transformer=transformer,
     simulation=True,
     control_freq_hz=48,
@@ -38,8 +38,8 @@ def calculate_return(rewards, discount_factor):
         reward * (discount_factor**i)
         for i, reward in enumerate(rewards)
     )
-task="hover"
-
+task="liftoff"
+max_rpm = env.env.MAX_RPM
 # Training loop
 for episode in range(num_episodes):
     # Reset the environment and the episode data
@@ -52,14 +52,12 @@ for episode in range(num_episodes):
     while True:
         # Get the action probabilities from the transformer
         logits = env.generate_action(state)
-        probabilities = F.softmax(logits, dim=-1)
         m = torch.distributions.Categorical(logits=logits)# Create a distribution to sample from
         actions_sampled = m.sample()# Sample actions from the distribution
         # Get the log probabilities of the sampled actions
         log_probs = m.log_prob(actions_sampled)
-        print(f"probabilities: {probabilities}")
         print(f"actions_sampled: {actions_sampled}")
-        actions = tokenizer.decode_transformer_outputs(logits)
+        actions = tokenizer.decode_transformer_outputs(logits, max_rpm=max_rpm)
         # Take a step in the environment
         results = env.step(step, actions)
         reward, obs = env.calculate_reward(task, results)
