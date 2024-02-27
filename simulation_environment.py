@@ -397,6 +397,16 @@ class CustomDroneEnv:
                 # Extract position and velocity from the state vector
                 drone_position = state_vector[:3]  # Assuming the first 3 elements are x, y, z position
                 ###### FINISH THIS TASK ######
+        elif task == "circles":
+            for nth_drone in range(self.num_drones):
+                state_vector = self.env._getDroneStateVector(nth_drone)
+                drone_position = state_vector[:3]
+                drone_velocity = state_vector[9:12]
+                distance_to_target = np.linalg.norm(
+                    drone_position - self.TARGET_POS[self.wp_counters[nth_drone]]
+                    )
+                velocity_magnitude = np.linalg.norm(drone_velocity)
+                reward -= 0.5 * distance_to_target + 1.0 * velocity_magnitude
         return reward, state_vector
 
     def reset(self, task="hover"):
@@ -457,6 +467,7 @@ class CustomDroneEnv:
         Returns:
         - done: A boolean indicating whether the episode is finished.
         """
+        done = False
         # Example condition: Check if any drone has crashed (assuming altitude is at index 2 and considering a threshold)
         for drone in self.drone_info:
             altitude = drone['position'][2]

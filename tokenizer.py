@@ -42,7 +42,7 @@ class Tokenizer:
         """
         return torch.stack(
             [
-                torch.clamp(action[i, :], min=0, max=self.max_rpm)
+                torch.clamp(action[i, :], min=10, max=self.max_rpm)
                 for i in range(self.num_drones)
             ]
         )
