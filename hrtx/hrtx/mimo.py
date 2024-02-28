@@ -77,12 +77,12 @@ class MIMOTransformer(nn.Module):
 
         """
         x = self.multi_input(x)
-        print(x.shape)
+        #print(x.shape)
         b, s, d = x.shape
 
         for _ in range(self.num_robots):
             x = self.transformer(x)
-            print(x.shape)
+            #print(x.shape)
 
         split = self.output_head(x)
 

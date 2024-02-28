@@ -7,9 +7,10 @@ from simulation_environment import CustomDroneEnv
 from tokenizer import Tokenizer
 from hrtx.hrtx.mimo import MIMOTransformer
 import torch.optim as optim
+from torch.distributions.categorical import Categorical
 
 # Initialize the environment and the transformer
-num_drones = 5
+num_drones = 2
 transformer = MIMOTransformer(
     dim=512,
     depth=6,
@@ -25,8 +26,6 @@ env = CustomDroneEnv(
     control_freq_hz=48,
     simulation_freq_hz=240,
 )
-max_rpm = env.env.MAX_RPM
-tokenizer = Tokenizer(num_drones, max_rpm)
 # Initialize some parameters for training
 num_episodes = 10
 learning_rate = 0.01
@@ -34,49 +33,71 @@ discount_factor = 0.99
 
 # Assuming MIMOTransformer has parameters that require gradients
 optimizer = optim.Adam(transformer.parameters(), lr=learning_rate)
-loss_function = torch.nn.CrossEntropyLoss()  # Adjust based on your task requirements
+loss_function = None  # Not used directly
+def get_desired_state(task, current_step, initial_state, waypoints=None):
+    """
+    Generate the desired state based on the task.
 
+    Parameters:
+    - task: The current task ('hover', 'move_to_location', etc.)
+    - current_step: The current step or iteration in the episode.
+    - initial_state: The initial state of the drone, used for hovering.
+    - waypoints: A list of waypoints for navigation tasks.
 
-# Function to calculate the return of an episode
-def calculate_return(rewards, discount_factor):
-    return sum(
-        reward * (discount_factor**i)
-        for i, reward in enumerate(rewards)
-    )
-task="liftoff"
+    Returns:
+    - desired_state: The desired state representation.
+    """
+    if task == "hover":
+        desired_state = initial_state  # For hovering, the desired state is the initial state
+        print(f"desired_state: {desired_state}")
+    elif task == "move_to_location":
+        # Assuming waypoints is a list of states, and current_step can index into it
+        # This may need to be adjusted based on how you track progress towards waypoints
+        waypoint_index = min(current_step, len(waypoints) - 1)
+        desired_state = waypoints[waypoint_index]
+    else:
+        raise ValueError(f"Unknown task: {task}")
+
+    return desired_state
+
+#loss_function = torch.nn.CrossEntropyLoss()  # Adjust based on your task requirements
+loss_function = torch.nn.MSELoss()
+task="hover"
 # Training loop
 for episode in range(num_episodes):
     # Reset the environment and the episode data
     step = 0
-    state = env.reset(task=task)
+    print("resetting environment")
+    initial_state = env.reset(task=task)
+    print("initial state", initial_state)
+    max_rpm = env.env.MAX_RPM
+    tokenizer = Tokenizer(num_drones, max_rpm)
     episode_rewards = []
-    optimizer.zero_grad()
+    total_loss = 0
+    state = initial_state
     # Loop for each step in the episode
     while True:
-        # Get the action probabilities from the transformer
-        logits = env.generate_action(state)
-        m = torch.distributions.Categorical(logits=logits)# Create a distribution to sample from
-        actions_sampled = m.sample()# Sample actions from the distribution
-        # Get the log probabilities of the sampled actions
-        log_probs = m.log_prob(actions_sampled)
-        print(f"actions_sampled: {actions_sampled}")
+        optimizer.zero_grad()
+        logits = env.generate_action(state) # Get action probabilities from the transformer
         actions = tokenizer.decode_transformer_outputs(logits)
-        # Take a step in the environment
-        results = env.step(step, actions)
-        reward, obs = env.calculate_reward(task, results)
-        done = env.is_done(results,task)
-        next_state = obs
+        print(logits.requires_grad)
+        reward, obs, done = env.step(step, actions) # Take a step
+        episode_rewards.append(reward) # Store the reward and the gradient
+        desired_state=get_desired_state(task, step, initial_state)
+        obs_tensor = torch.stack([torch.tensor(drone['position']) for drone in obs])
+        desired_state_tensor = torch.stack([torch.tensor(drone['position']) for drone in desired_state])
 
-        # Store the reward and the gradient
-        episode_rewards.append(reward)
 
+        loss = loss_function(obs_tensor, desired_state_tensor)
+        loss.backward()
+        optimizer.step()  # Update model parameters
         # If the episode is done, update the weights of the transformer
         if done:
-            optimizer.step()  # Update model parameters
+            env.env.close()
             break
         step += 1
         # Update the state
-        state = next_state
+        state = obs
 
 # Close the environment
-env.close()
+env.env.close()

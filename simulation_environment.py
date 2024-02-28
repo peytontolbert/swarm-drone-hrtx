@@ -148,20 +148,14 @@ class CustomDroneEnv:
             ]
         )
         #### Create the environment ################################
-        self.env = CtrlAviary(
-            drone_model=DEFAULT_DRONES,
-            num_drones=num_drones,
-            initial_xyzs=self.INIT_XYZS,
-            initial_rpys=self.INIT_RPYS,
-            physics=physics,
-            neighbourhood_radius=10,
-            pyb_freq=simulation_freq_hz,
-            ctrl_freq=control_freq_hz,
-            gui=gui,
-            record=record_video,
-            obstacles=obstacles,
-            user_debug_gui=user_debug_gui,
-        )
+        self.num_drones = num_drones
+        self.physics = physics
+        self.simulation_freq_hz = simulation_freq_hz
+        self.control_freq_hz = control_freq_hz
+        self.record_video = record_video
+        self.obstacles = obstacles
+        self.user_debug_gui = user_debug_gui
+        self.env = None
         # self.client = bullet_client.BulletClient(connection_mode=connection_mode)
         # self.client = pybullet.connect(pybullet.DIRECT)  # Instead of p.GUI
         # if gui:
@@ -361,9 +355,13 @@ class CustomDroneEnv:
         results = self._get_observations(
         )
         self.obs = results
-        return results
+        reward = self.calculate_reward(
+            self.task, self.drone_info
+        )
+        done = self.is_done(self.drone_info, self.task)
+        return reward, self.drone_info, done
     
-    def calculate_reward(self, task: str, results: np.ndarray, done: bool=False):
+    def calculate_reward(self, task: str, results: np.ndarray):
         """
         Calculate the reward for the drone's current state, focusing on hover stability.
 
@@ -410,6 +408,23 @@ class CustomDroneEnv:
         return reward, state_vector
 
     def reset(self, task="hover"):
+        if self.env is None:
+            self.env = CtrlAviary(
+                drone_model=DEFAULT_DRONES,
+                num_drones=self.num_drones,
+                initial_xyzs=self.INIT_XYZS,
+                initial_rpys=self.INIT_RPYS,
+                physics=self.physics,
+                neighbourhood_radius=10,
+                pyb_freq=self.simulation_freq_hz,
+                ctrl_freq=self.control_freq_hz,
+                gui=self.gui,
+                record=self.record_video,
+                obstacles=self.obstacles,
+                user_debug_gui=self.user_debug_gui,
+            )
+        else:
+            self.env._housekeeping()
         # Your reset logic here
         if self.task is None:
             self.task = task
@@ -418,7 +433,7 @@ class CustomDroneEnv:
         if self.obs is None:
             self.obs = self.env.step(self.action)
         observations = (
-            self._get_observations()
+            self.env.render()
         )  # Assuming this returns a list of observations
         if task == "hover":
             self.hover = MultiHoverAviary(
@@ -436,27 +451,6 @@ class CustomDroneEnv:
                 act = ActionType.RPM,
             )
         return observations  # Convert list to NumPy array
-
-    def render(self, mode="human", **kwargs):
-        """
-        Enhanced rendering with adjustable camera.
-        """
-        if mode == "human":
-            self.client.resetDebugVisualizerCamera(
-                cameraDistance=2,
-                cameraYaw=0,
-                cameraPitch=-45,
-                cameraTargetPosition=[0, 0, 0],
-            )
-
-    def _compute_done(self, drone_id):
-        # Example condition: episode ends if the drone flies out of bounds
-        drone_pos = self.client.getBasePositionAndOrientation(
-            drone_id
-        )[0]
-        return not (min_bound < drone_pos < max_bound)
-
-    
     def is_done(self, results, task):
         """
         Determine if the episode is done based on the drone's state or environment conditions.
@@ -468,15 +462,17 @@ class CustomDroneEnv:
         - done: A boolean indicating whether the episode is finished.
         """
         done = False
+        pos = self.env.render()
+        print(f"drone stats: {pos}")
         # Example condition: Check if any drone has crashed (assuming altitude is at index 2 and considering a threshold)
-        for drone in self.drone_info:
-            altitude = drone['position'][2]
-            if altitude < 0.2:  # Assuming the drone is considered crashed if altitude is below 0.1
+        for i in range(self.num_drones):
+            altitude = pos[i]['position'][2]
+            print(self.drone_info)
+            if altitude < 0.02:  # Assuming the drone is considered crashed if altitude is below 0.1
                 print("A drone has crashed.")
                 done = True
-                break
+                return done
         if task == "hover":
-            print(f"checking hover result: {results}")
             done = self.hover._computeTerminated()
         else:# Example: Episode ends if the drone crashes or reaches its target
             done = self.done.get('crashed', False) or self.done.get('reached_target', False)
@@ -501,29 +497,32 @@ class CustomDroneEnv:
         Returns:
         - reward: A float representing the calculated reward.
         """
-        state_vector = self.env._getDroneStateVector(nth_drone)
-        position = state_vector[:3]  # Extract position
-        velocity = state_vector[9:12]  # Extract linear velocity
-        angular_velocity = state_vector[12:15]  # Extract angular velocity
+        all_reward = 0  # Initialize the total reward
+        drone_info = self.env.render()
+        for drone in drone_info:
+            position = drone['position']  # Extract position
+            velocity = drone['velocity']  # Extract linear velocity
+            rpy = drone['rpy']  # Extract roll, pitch, yaw
+            angular_velocity = drone['angular_velocity']  # Extract angular velocity
 
-        # Calculate the distance from the target position
-        distance_to_target = np.linalg.norm(position - target_position)
+            # Calculate the distance from the target position
+            distance_to_target = np.linalg.norm(position - target_position)
 
-        # Calculate the magnitude of velocity and angular velocity
-        velocity_magnitude = np.linalg.norm(velocity)
-        angular_velocity_magnitude = np.linalg.norm(angular_velocity)
+            # Calculate the magnitude of velocity and angular velocity
+            velocity_magnitude = np.linalg.norm(velocity)
+            angular_velocity_magnitude = np.linalg.norm(angular_velocity)
 
-        # Define weights for each component of the reward
-        weight_distance = -1.0  # Negative because we want to minimize distance
-        weight_velocity = -0.5  # Negative because we want to minimize velocity
-        weight_angular_velocity = -0.5  # Negative because we want to minimize angular velocity
+            # Define weights for each component of the reward
+            weight_distance = -1.0  # Negative because we want to minimize distance
+            weight_velocity = -0.5  # Negative because we want to minimize velocity
+            weight_angular_velocity = -0.5  # Negative because we want to minimize angular velocity
 
-        # Calculate weighted components of the reward
-        reward_distance = weight_distance * distance_to_target
-        reward_velocity = weight_velocity * velocity_magnitude
-        reward_angular_velocity = weight_angular_velocity * angular_velocity_magnitude
+            # Calculate weighted components of the reward
+            reward_distance = weight_distance * distance_to_target
+            reward_velocity = weight_velocity * velocity_magnitude
+            reward_angular_velocity = weight_angular_velocity * angular_velocity_magnitude
 
-        # Sum the components to get the total reward
-        total_reward = reward_distance + reward_velocity + reward_angular_velocity
-
-        return total_reward
+            # Sum the components to get the total reward
+            total_reward = reward_distance + reward_velocity + reward_angular_velocity
+            all_reward += total_reward
+        return all_reward
